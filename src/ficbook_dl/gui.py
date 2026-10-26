@@ -51,7 +51,8 @@ class App:
         self.format_chips: dict[str, SoftButton] = {}
         self.row_buttons: list[tuple[SoftButton, str]] = []
         self.book_buttons: dict[str, SoftButton] = {}
-        self.downloaded_urls = _load_downloaded()
+        self.downloaded_urls: set[str] = set()
+        self.library_author_url = ""
         self.nav: dict[str, SoftButton] = {}
         self.lang_chips: dict[str, SoftButton] = {}
         self.labels: list[tuple[tk.Label, str, str]] = []
@@ -500,13 +501,16 @@ class App:
             text = message(exc, language) if isinstance(exc, FicbookError) else str(exc)
             self.root.after(0, lambda: self._author_failed(text))
             return
-        self.root.after(0, lambda: self._show_works(name, works))
+        self.root.after(0, lambda: self._show_works(name, works, url))
 
     def _author_failed(self, text: str) -> None:
         self.show_books_button.set_enabled(True)
         self.library_status.configure(text=text)
 
-    def _show_works(self, name: str, works) -> None:
+    def _show_works(self, name: str, works, author_url: str) -> None:
+        if author_url != self.library_author_url:
+            self.downloaded_urls.clear()
+            self.library_author_url = author_url
         self.show_books_button.set_enabled(True)
         self.library_status.configure(text=f"{name} · {t(self.language, 'books_count', n=len(works))}" if name else t(self.language, "books_count", n=len(works)))
         self.row_buttons.clear()
@@ -559,7 +563,6 @@ class App:
 
     def _remember_download(self, url: str) -> None:
         self.downloaded_urls.add(url)
-        _save_downloaded(self.downloaded_urls)
         self._set_book_state(url, "downloaded")
 
     def _preview(self, work) -> None:
@@ -614,26 +617,6 @@ class App:
         self.log.insert("end", text + "\n")
         self.log.see("end")
         self.log.configure(state="disabled")
-
-
-def _downloaded_path() -> Path:
-    return Path.home() / ".config" / "ficbook-downloader" / "downloaded.txt"
-
-
-def _load_downloaded() -> set[str]:
-    try:
-        return {line.strip() for line in _downloaded_path().read_text(encoding="utf-8").splitlines() if line.strip()}
-    except OSError:
-        return set()
-
-
-def _save_downloaded(urls: set[str]) -> None:
-    path = _downloaded_path()
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("\n".join(sorted(urls)) + "\n", encoding="utf-8")
-    except OSError:
-        return
 
 
 if __name__ == "__main__":
