@@ -492,6 +492,7 @@ class App:
             preview.pack(side="right", padx=(0, 8), pady=12)
             self.row_buttons.append((preview, "preview"))
             self.row_buttons.append((download, "download"))
+        self.library_scroll.sync()
 
     def _preview(self, work) -> None:
         self.library_status.configure(text=t(self.language, "loading"))

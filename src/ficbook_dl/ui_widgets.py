@@ -139,47 +139,53 @@ class ScrolledBody(tk.Frame):
         self.canvas = tk.Canvas(self, bg=bg, highlightthickness=0, bd=0)
         self.bar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.inner = tk.Frame(self.canvas, bg=bg)
-        self.inner.bind("<Configure>", lambda _event: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.inner.bind("<Configure>", self._reflow)
         self.window = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
         self.canvas.configure(yscrollcommand=self.bar.set)
         self.canvas.pack(side="left", fill="both", expand=True)
         self.bar.pack(side="right", fill="y")
-        self.canvas.bind("<Configure>", self._stretch)
-        # Trackpad events land on the row under the fingers, not on this canvas.
-        # Listen globally and scroll only while the pointer is over the list.
-        self.bind_all("<MouseWheel>", self._wheel)
-        self.bind_all("<Button-4>", self._wheel_linux)
-        self.bind_all("<Button-5>", self._wheel_linux)
+        self.canvas.bind("<Configure>", self._reflow)
+        self._bind_wheel(self.canvas)
+        self._bind_wheel(self.inner)
 
-    def _stretch(self, event) -> None:
-        self.canvas.itemconfigure(self.window, width=max(event.width, 1))
+    def sync(self) -> None:
+        """Call after adding rows so a trackpad swipe on a row scrolls the list."""
+        self._bind_tree(self.inner)
+        self._reflow()
 
-    def _pointer_is_inside(self) -> bool:
-        widget = self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery())
-        while widget is not None:
-            if widget == self:
-                return True
-            widget = getattr(widget, "master", None)
-        return False
+    def _bind_tree(self, widget) -> None:
+        self._bind_wheel(widget)
+        for child in widget.winfo_children():
+            self._bind_tree(child)
 
-    def _wheel(self, event) -> str | None:
-        if not self._pointer_is_inside():
-            return None
+    def _bind_wheel(self, widget) -> None:
+        widget.bind("<MouseWheel>", self._wheel, add="+")
+        widget.bind("<Button-4>", self._wheel_linux, add="+")
+        widget.bind("<Button-5>", self._wheel_linux, add="+")
+        if sys.platform == "darwin":
+            # Aqua sends a trackpad swipe to the widget that has focus.
+            widget.bind("<Enter>", lambda _event, target=widget: target.focus_set(), add="+")
+
+    def _reflow(self, _event=None) -> None:
+        self.inner.update_idletasks()
+        width = max(self.canvas.winfo_width(), 1)
+        height = max(self.inner.winfo_reqheight(), 1)
+        self.canvas.itemconfigure(self.window, width=width, height=height)
+        self.canvas.configure(scrollregion=(0, 0, width, height))
+
+    def _wheel(self, event) -> str:
         delta = getattr(event, "delta", 0) or 0
-        if delta == 0:
-            return "break"
-        if abs(delta) >= 120:
+        if sys.platform == "darwin":
+            # Aqua reports a trackpad swipe as a small delta, not 120 per click.
+            step = -int(delta) if delta else 0
+        elif abs(delta) >= 120:
             step = int(-delta / 120)
         else:
-            # macOS trackpad: small signed deltas, one gesture sends many of them.
-            step = int(-delta) if abs(delta) > 1 else (-1 if delta > 0 else 1)
-            step = max(-6, min(6, step))
+            step = -1 if delta > 0 else 1
         if step:
             self.canvas.yview_scroll(step, "units")
         return "break"
 
-    def _wheel_linux(self, event) -> str | None:
-        if not self._pointer_is_inside():
-            return None
+    def _wheel_linux(self, event) -> str:
         self.canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
         return "break"
