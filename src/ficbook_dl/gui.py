@@ -156,7 +156,8 @@ class App:
         self.links.hint_on = False
         self.links.pack(fill="both", expand=True, padx=22, pady=(0, 14))
         self.links.bind("<FocusIn>", lambda _event: self._clear_hint())
-        self.links.bind("<FocusOut>", lambda _event: self._show_hint())
+        self.links.bind("<FocusOut>", lambda _event: self.root.after(50, self._show_hint))
+        self.links.bind("<<Paste>>", self._paste_links)
 
         folder = tk.Frame(card, bg=CARD)
         folder.pack(fill="x", padx=22, pady=(0, 10))
@@ -336,6 +337,8 @@ class App:
         self.author_entry.configure(bg=SOFT)
 
     def _show_hint(self) -> None:
+        if self.links.focus_get() == self.links:
+            return
         if self.links.get("1.0", "end").strip():
             return
         self.links.insert("1.0", t(self.language, "hint"))
@@ -348,6 +351,21 @@ class App:
         self.links.delete("1.0", "end")
         self.links.configure(fg=INK)
         self.links.hint_on = False
+
+    def _paste_links(self, _event=None) -> str:
+        self._clear_hint()
+        try:
+            text = self.root.clipboard_get()
+        except tk.TclError:
+            return "break"
+        try:
+            self.links.delete("sel.first", "sel.last")
+        except tk.TclError:
+            pass
+        self.links.insert("insert", text)
+        self.links.configure(fg=INK)
+        self.links.hint_on = False
+        return "break"
 
     def _link_lines(self) -> list[str]:
         if self.links.hint_on:
