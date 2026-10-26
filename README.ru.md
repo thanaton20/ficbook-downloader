@@ -16,6 +16,12 @@
 2. Перетащите **Ficbook Downloader** в папку Applications.
 3. Откройте программу из Applications. В первый раз macOS может написать, что разработчик не подтверждён. Нажмите на программу с зажатой клавишей Control, выберите **Открыть**, затем ещё раз **Открыть**.
 
+## Скачать для Windows
+
+Скачайте [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) и запустите его двойным щелчком.
+
+Windows может показать предупреждение SmartScreen, потому что файл не подписан. Нажмите **Подробнее**, затем **Выполнить в любом случае**.
+
 ## Установка из исходников
 
 ```bash

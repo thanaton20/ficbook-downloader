@@ -16,6 +16,12 @@ Download [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-download
 2. Drag **Ficbook Downloader** onto the Applications folder.
 3. Open the app from Applications. The first time, macOS may say the developer cannot be verified. Control-click the app, choose **Open**, then click **Open** again.
 
+## Download for Windows
+
+Download [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) and double-click it.
+
+Windows may show a SmartScreen warning because the file is not signed. Choose **More info**, then **Run anyway**.
+
 ## Install from source
 
 ```bash
