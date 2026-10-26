@@ -59,18 +59,25 @@ On Windows, from the project folder:
 ficbook-gui
 ```
 
-`ficbook-dl --gui` opens the same window. The title bar says **Ficbook Downloader**.
+`ficbook-dl --gui` opens the same window. A sidebar on the left has three pages: **Download**, **Library**, and **About**. At the bottom of the sidebar, **EN**, **RU**, and **UK** switch the language. The choice is remembered, and text-file labels such as Author and Series follow it. On the command line, use `--lang en`, `--lang ru`, or `--lang uk`.
+
+### Download
 
 1. In **Story links**, paste one link per line. A story id works too, and a link to a single chapter still saves the whole story.
-2. **Save to** is your `Stories` folder. Click **Browse** to pick another folder.
-3. Under **Formats**, leave **TXT**, **EPUB**, and **FB2** checked, or clear the ones you do not want.
+2. **Save to** starts as your `Stories` folder. **Browse** picks another folder.
+3. **TXT**, **EPUB**, and **FB2** start selected. Click a format to turn it off.
 4. **Pause (seconds)** is the wait between requests. It starts at `1.5`.
-5. Click **Download**. The button changes to **Stop**. The log under it prints each chapter, then a `saved …` line for every file.
-6. **Language**, at the top right, switches the window among English, Русский, and Українська. The choice is remembered. Text-file labels such as Author and Series follow it. On the command line, use `--lang en`, `--lang ru`, or `--lang uk`.
+5. Click **Download**. The button changes to **Stop**. The log prints each chapter, then a `saved …` line for every file.
 
-The status line next to the button ends with how many stories were saved. Click **Stop** to halt before the next chapter. Files already written stay where they are.
+**Stop** halts the download before the next chapter. Files already written stay where they are. Each story is saved as `Title — Author` with the extensions you left on.
 
-Each story is saved as `Title — Author` with the extensions you checked.
+### Library
+
+Paste an author link, such as `https://ficbook.net/authors/2`, and click **Show books**. The page lists that author's books. **Download** on a row saves that book with the folder and formats chosen on the Download page. **Preview** opens the book title, the author's name, the series name, and the cover.
+
+### About
+
+**About** is the page for the person who made the app, Yaroslau Hatalski. **Open GitHub** goes to [github.com/thanaton20](https://github.com/thanaton20).
 
 ## Use the command line
 
