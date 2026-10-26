@@ -254,6 +254,14 @@ class App:
         self.author_entry.pack(side="left", fill="x", expand=True, ipady=8, padx=(0, 12))
         self.show_books_button = self._button(inner, "show_books", self._load_author, "primary", 170)
         self.show_books_button.pack(side="left")
+        formats = tk.Frame(bar, bg=CARD)
+        formats.pack(fill="x", padx=16, pady=(0, 14))
+        self._label(formats, "formats", 13, "bold").pack(side="left", padx=(0, 10))
+        self.library_format_chips: dict[str, SoftButton] = {}
+        for fmt in FORMATS:
+            chip = SoftButton(formats, fmt.upper(), command=lambda: None, kind="chip", width=72, height=30, selected=True)
+            chip.pack(side="left", padx=4)
+            self.library_format_chips[fmt] = chip
 
         self.library_status = tk.Label(page, bg=BG, fg=MUTED, font=ui_font(13), anchor="w")
         self.library_status.pack(anchor="w", padx=28, pady=(10, 6))
@@ -353,6 +361,9 @@ class App:
     def _selected_formats(self) -> list[str]:
         return [fmt for fmt, chip in self.format_chips.items() if chip.selected]
 
+    def _library_formats(self) -> list[str]:
+        return [fmt for fmt, chip in self.library_format_chips.items() if chip.selected]
+
     def _pause(self) -> float:
         return float(self.delay.get().replace(",", "."))
 
@@ -365,10 +376,11 @@ class App:
             return
         self._start_download(urls)
 
-    def _start_download(self, urls: list[str]) -> None:
+    def _start_download(self, urls: list[str], formats: list[str] | None = None) -> None:
         if self.busy:
             return
-        formats = self._selected_formats()
+        if formats is None:
+            formats = self._selected_formats()
         if not formats:
             messagebox.showinfo(t(self.language, "window_title"), t(self.language, "need_format"), parent=self.root)
             return
@@ -511,7 +523,7 @@ class App:
             download = SoftButton(
                 row,
                 t(self.language, "downloaded" if already else "download"),
-                command=None if already else (lambda item=work: self._start_download([item.url])),
+                command=None if already else (lambda item=work: self._start_download([item.url], self._library_formats())),
                 kind="done" if already else "primary",
                 width=168,
                 height=34,
@@ -541,7 +553,7 @@ class App:
             button.set_text(t(self.language, "saving"))
         else:
             button.kind = "primary"
-            button.command = lambda current=url: self._start_download([current])
+            button.command = lambda current=url: self._start_download([current], self._library_formats())
             button.set_enabled(True)
             button.set_text(t(self.language, "download"))
 

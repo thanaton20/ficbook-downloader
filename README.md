@@ -73,7 +73,7 @@ ficbook-gui
 
 ### Library
 
-Paste an author link, such as `https://ficbook.net/authors/2`, and click **Show books**. The page lists that author's books. **Download** on a row saves that book with the folder and formats chosen on the Download page. **Preview** opens the book title, the author's name, the series name, and the cover.
+Paste an author link, such as `https://ficbook.net/authors/2`, and click **Show books**. The page lists that author's books. **TXT**, **EPUB**, and **FB2** on this page choose the file type. **Download** on a row saves that book in the selected types, into the folder chosen on the Download page. **Preview** opens the book title, the author's name, the series name, and the cover.
 
 ### About
 
