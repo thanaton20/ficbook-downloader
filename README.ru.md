@@ -14,7 +14,15 @@
 
 1. Откройте образ диска.
 2. Перетащите **Ficbook Downloader** в папку Applications.
-3. Откройте программу из Applications. В первый раз macOS может написать, что разработчик не подтверждён. Нажмите на программу с зажатой клавишей Control, выберите **Открыть**, затем ещё раз **Открыть**.
+3. Откройте программу из Applications.
+
+При первом запуске может появиться окно **"Ficbook Downloader" Not Opened**: Apple could not verify "Ficbook Downloader". Нажмите **Done**. Кнопку **Move to Trash** не нажимайте. Затем откройте Терминал и выполните:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Ficbook Downloader.app"
+```
+
+Снова откройте программу из Applications. Предупреждение больше не появится.
 
 ## Скачать для Windows
 

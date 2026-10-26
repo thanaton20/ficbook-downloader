@@ -62,6 +62,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name="Ficbook Downloader.app",
+    icon=str(ROOT / "packaging" / "AppIcon.icns"),
     bundle_identifier="com.thanaton20.ficbook-downloader",
     info_plist={
         "CFBundleName": "Ficbook Downloader",

@@ -28,7 +28,7 @@ jobs:
 
       - name: Build one-file window
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name Ficbook-Downloader --collect-all curl_cffi --collect-all PIL --collect-all bs4 packaging/launcher.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name Ficbook-Downloader --icon packaging/AppIcon.ico --collect-all curl_cffi --collect-all PIL --collect-all bs4 packaging/launcher.py
 
       - name: Attach exe to the release
         uses: softprops/action-gh-release@v2

@@ -6,3 +6,4 @@ dist/
 build/
 stories/
 .DS_Store
+packaging/AppIcon.iconset/

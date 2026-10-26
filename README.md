@@ -14,7 +14,15 @@ Download [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-download
 
 1. Open the disk image.
 2. Drag **Ficbook Downloader** onto the Applications folder.
-3. Open the app from Applications. The first time, macOS may say the developer cannot be verified. Control-click the app, choose **Open**, then click **Open** again.
+3. Open the app from Applications.
+
+The first launch can show **"Ficbook Downloader" Not Opened**, with the text that Apple could not verify the app. Click **Done**. Do not click **Move to Trash**. Then open Terminal and run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Ficbook Downloader.app"
+```
+
+Open the app from Applications again. The warning is gone.
 
 ## Download for Windows
 
