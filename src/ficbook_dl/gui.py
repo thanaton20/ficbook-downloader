@@ -46,7 +46,7 @@ class App:
         self.language = preferred_language()
         self.page = "download"
         self.busy = False
-        self.output = tk.StringVar(value=str(Path.home() / "Stories"))
+        self.output = tk.StringVar(value=_load_save_folder())
         self.delay = tk.StringVar(value="1.5")
         self.format_chips: dict[str, SoftButton] = {}
         self.row_buttons: list[tuple[SoftButton, str]] = []
@@ -358,6 +358,7 @@ class App:
         chosen = filedialog.askdirectory(parent=self.root, initialdir=self.output.get() or str(Path.home()))
         if chosen:
             self.output.set(chosen)
+            _save_save_folder(chosen)
 
     def _selected_formats(self) -> list[str]:
         return [fmt for fmt, chip in self.format_chips.items() if chip.selected]
@@ -617,6 +618,30 @@ class App:
         self.log.insert("end", text + "\n")
         self.log.see("end")
         self.log.configure(state="disabled")
+
+
+def _config_dir() -> Path:
+    return Path.home() / ".config" / "ficbook-downloader"
+
+
+def _load_save_folder() -> str:
+    fallback = Path.home() / "Stories"
+    try:
+        saved = (_config_dir() / "save-folder").read_text(encoding="utf-8").strip()
+    except OSError:
+        saved = ""
+    if saved and Path(saved).is_dir():
+        return saved
+    return str(fallback)
+
+
+def _save_save_folder(folder: str) -> None:
+    try:
+        directory = _config_dir()
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "save-folder").write_text(folder, encoding="utf-8")
+    except OSError:
+        return
 
 
 if __name__ == "__main__":

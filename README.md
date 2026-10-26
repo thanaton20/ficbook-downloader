@@ -64,7 +64,7 @@ ficbook-gui
 ### Download
 
 1. In **Story links**, paste one link per line. A story id works too, and a link to a single chapter still saves the whole story.
-2. **Save to** starts as your `Stories` folder. **Browse** picks another folder.
+2. **Save to** starts as your `Stories` folder. **Browse** picks another folder, and that choice is kept the next time you open the app.
 3. **TXT**, **EPUB**, and **FB2** start selected. Click a format to turn it off.
 4. **Pause (seconds)** is the wait between requests. It starts at `1.5`.
 5. Click **Download**. The button changes to **Stop**. The log prints each chapter, then a `saved …` line for every file.
