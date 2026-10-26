@@ -152,6 +152,28 @@ class ParseTests(unittest.TestCase):
         )
         self.assertEqual(body, "Hello there\n\nNext")
 
+    def test_author_works_skip_promos_and_find_next_page(self):
+        from ficbook_dl.parse import canonical_author_works_url, parse_author_works
+
+        html = """
+        <html><head><title>Ada – profile</title></head><body>
+        <h1>Ada</h1>
+        <a class="visit-link" href="/readfic/10">First book</a>
+        <a class="visit-link js-promo-fanfic" href="/readfic/99">Ad</a>
+        <a class="visit-link" href="/readfic/10">First book</a>
+        <a class="visit-link" href="/readfic/11">Second book</a>
+        <a href="/authors/4/profile/works?p=2">2</a>
+        </body></html>
+        """
+        self.assertEqual(
+            canonical_author_works_url("https://ficbook.net/authors/4"),
+            "https://ficbook.net/authors/4/profile/works",
+        )
+        name, works, nxt = parse_author_works(html, "https://ficbook.net/authors/4/profile/works")
+        self.assertEqual(name, "Ada")
+        self.assertEqual([work.title for work in works], ["First book", "Second book"])
+        self.assertEqual(nxt, "https://ficbook.net/authors/4/profile/works?p=2")
+
     def test_missing_chapter_text(self):
         with self.assertRaises(MissingText):
             parse_chapter("<html><body>empty</body></html>", "https://ficbook.net/readfic/7/10")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from html import escape
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup, NavigableString
 
@@ -389,3 +389,76 @@ def _text(node) -> str:
 def _without_fragment(url: str) -> str:
     parsed = urlparse(url)
     return urlunparse(parsed._replace(fragment=""))
+
+
+@dataclass
+class AuthorWork:
+    story_id: str
+    title: str
+    url: str
+
+
+def canonical_author_works_url(value: str) -> str:
+    """Accept an author profile link and return the works list URL."""
+    raw = value.strip()
+    if not raw:
+        raise described(InvalidLink, "need_author")
+    if "://" not in raw and "/" not in raw and re.fullmatch(r"[0-9A-Za-z-]+", raw):
+        return f"https://ficbook.net/authors/{raw}/profile/works"
+
+    parsed = urlparse(raw if "://" in raw else "https://ficbook.net/" + raw.lstrip("/"))
+    host = parsed.netloc.lower().removeprefix("www.")
+    if host != "ficbook.net":
+        raise described(InvalidLink, "not_author", value=value)
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) < 2 or parts[0] != "authors":
+        raise described(InvalidLink, "not_author", value=value)
+    return f"https://ficbook.net/authors/{parts[1]}/profile/works"
+
+
+def parse_author_works(html: str, page_url: str) -> tuple[str, list[AuthorWork], str | None]:
+    """Return the author name, the books on this page, and the next page URL."""
+    _reject_security_page(html)
+    soup = BeautifulSoup(html, "html.parser")
+    name = _text(soup.select_one("h1")) or _author_name_from_title(soup)
+    works: list[AuthorWork] = []
+    seen: set[str] = set()
+    for anchor in soup.select("a.visit-link[href*='/readfic/']"):
+        classes = set(anchor.get("class") or [])
+        if "js-promo-fanfic" in classes or "fanfic-promo-item" in classes:
+            continue
+        path = urlparse(urljoin("https://ficbook.net", anchor.get("href") or "")).path.rstrip("/")
+        match = re.fullmatch(r"/readfic/([^/]+)", path)
+        if not match or match.group(1) in seen:
+            continue
+        seen.add(match.group(1))
+        title = _text(anchor) or match.group(1)
+        works.append(
+            AuthorWork(
+                story_id=match.group(1),
+                title=title,
+                url=f"https://ficbook.net/readfic/{match.group(1)}",
+            )
+        )
+    return name, works, _next_works_page(soup, page_url)
+
+
+def _author_name_from_title(soup: BeautifulSoup) -> str:
+    title = _text(soup.find("title"))
+    return re.split(r"\s+[–—-]\s+", title, maxsplit=1)[0].strip()
+
+
+def _next_works_page(soup: BeautifulSoup, page_url: str) -> str | None:
+    parsed = urlparse(page_url)
+    current = int(parse_qs(parsed.query).get("p", ["1"])[0] or "1")
+    pages: set[int] = set()
+    for anchor in soup.select("a[href*='/profile/works']"):
+        query = parse_qs(urlparse(urljoin("https://ficbook.net", anchor.get("href") or "")).query)
+        if "p" in query and query["p"][0].isdigit():
+            pages.add(int(query["p"][0]))
+    nxt = current + 1
+    if nxt not in pages:
+        return None
+    query = parse_qs(parsed.query)
+    query["p"] = [str(nxt)]
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True), fragment=""))
