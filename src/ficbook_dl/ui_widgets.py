@@ -23,26 +23,6 @@ def ui_font(size: int = 13, weight: str = "normal") -> tuple:
     return (family, size)
 
 
-def round_rect(canvas: tk.Canvas, box: tuple, radius: int, **kwargs) -> int:
-    x1, y1, x2, y2 = box
-    radius = min(radius, (x2 - x1) // 2, (y2 - y1) // 2)
-    points = [
-        x1 + radius, y1,
-        x2 - radius, y1,
-        x2, y1,
-        x2, y1 + radius,
-        x2, y2 - radius,
-        x2, y2,
-        x2 - radius, y2,
-        x1 + radius, y2,
-        x1, y2,
-        x1, y2 - radius,
-        x1, y1 + radius,
-        x1, y1,
-    ]
-    return canvas.create_polygon(points, smooth=True, **kwargs)
-
-
 class SoftButton(tk.Canvas):
     """A rounded button. primary is filled; secondary and chips are outlined."""
 
@@ -115,9 +95,9 @@ class SoftButton(tk.Canvas):
         height = int(self.cget("height"))
         fill, ink, outline = self._palette()
         if outline:
-            round_rect(self, (1, 1, width - 1, height - 1), 12, fill=fill, outline=outline, width=1)
+            self.create_rectangle(1, 1, width - 1, height - 1, fill=fill, outline=outline, width=1)
         else:
-            round_rect(self, (1, 1, width - 1, height - 1), 12, fill=fill, outline=fill)
+            self.create_rectangle(0, 0, width, height, fill=fill, outline=fill)
         if self.kind == "nav":
             self.create_text(16, height / 2, text=self.label, fill=ink, font=ui_font(14, "bold"), anchor="w")
         else:
