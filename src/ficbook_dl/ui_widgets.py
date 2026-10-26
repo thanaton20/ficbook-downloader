@@ -160,11 +160,9 @@ class ScrolledBody(tk.Frame):
 
     def _bind_wheel(self, widget) -> None:
         widget.bind("<MouseWheel>", self._wheel, add="+")
+        widget.bind("<TouchpadScroll>", self._touchpad, add="+")
         widget.bind("<Button-4>", self._wheel_linux, add="+")
         widget.bind("<Button-5>", self._wheel_linux, add="+")
-        if sys.platform == "darwin":
-            # Aqua sends a trackpad swipe to the widget that has focus.
-            widget.bind("<Enter>", lambda _event, target=widget: target.focus_set(), add="+")
 
     def _reflow(self, _event=None) -> None:
         self.inner.update_idletasks()
@@ -174,17 +172,38 @@ class ScrolledBody(tk.Frame):
         self.canvas.configure(scrollregion=(0, 0, width, height))
 
     def _wheel(self, event) -> str:
-        delta = getattr(event, "delta", 0) or 0
-        if sys.platform == "darwin":
-            # Aqua reports a trackpad swipe as a small delta, not 120 per click.
-            step = -int(delta) if delta else 0
-        elif abs(delta) >= 120:
-            step = int(-delta / 120)
-        else:
-            step = -1 if delta > 0 else 1
-        if step:
+        delta = int(getattr(event, "delta", 0) or 0)
+        if delta:
+            factor = -40.0 if sys.platform == "darwin" else -120.0
+            step = int(delta / factor) or (-1 if delta > 0 else 1)
             self.canvas.yview_scroll(step, "units")
         return "break"
+
+    def _touchpad(self, event) -> str:
+        # macOS sends a two-finger swipe as TouchpadScroll, not MouseWheel.
+        try:
+            _delta_x, delta_y = self.canvas.tk.call("tk::PreciseScrollDeltas", int(event.delta))
+        except tk.TclError:
+            return "break"
+        delta_y = int(delta_y)
+        if delta_y:
+            self._scroll_pixels(-delta_y)
+        return "break"
+
+    def _scroll_pixels(self, pixels: float) -> None:
+        region = self.canvas.cget("scrollregion")
+        if not region:
+            return
+        parts = [float(part) for part in str(region).split()]
+        if len(parts) != 4:
+            return
+        total = parts[3] - parts[1]
+        visible = float(self.canvas.winfo_height())
+        if total <= visible + 1:
+            return
+        first = float(self.canvas.yview()[0])
+        top = max(0.0, min(total - visible, first * total + pixels))
+        self.canvas.yview_moveto(top / total)
 
     def _wheel_linux(self, event) -> str:
         self.canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
