@@ -145,12 +145,41 @@ class ScrolledBody(tk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         self.bar.pack(side="right", fill="y")
         self.canvas.bind("<Configure>", self._stretch)
-        self.canvas.bind("<Enter>", lambda _event: self.canvas.bind_all("<MouseWheel>", self._wheel))
-        self.canvas.bind("<Leave>", lambda _event: self.canvas.unbind_all("<MouseWheel>"))
+        # Trackpad events land on the row under the fingers, not on this canvas.
+        # Listen globally and scroll only while the pointer is over the list.
+        self.bind_all("<MouseWheel>", self._wheel)
+        self.bind_all("<Button-4>", self._wheel_linux)
+        self.bind_all("<Button-5>", self._wheel_linux)
 
     def _stretch(self, event) -> None:
-        self.canvas.itemconfigure(self.window, width=event.width)
+        self.canvas.itemconfigure(self.window, width=max(event.width, 1))
 
-    def _wheel(self, event) -> None:
-        step = int(-event.delta / 120) if abs(event.delta) >= 120 else (-1 if event.delta > 0 else 1)
-        self.canvas.yview_scroll(step, "units")
+    def _pointer_is_inside(self) -> bool:
+        widget = self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery())
+        while widget is not None:
+            if widget == self:
+                return True
+            widget = getattr(widget, "master", None)
+        return False
+
+    def _wheel(self, event) -> str | None:
+        if not self._pointer_is_inside():
+            return None
+        delta = getattr(event, "delta", 0) or 0
+        if delta == 0:
+            return "break"
+        if abs(delta) >= 120:
+            step = int(-delta / 120)
+        else:
+            # macOS trackpad: small signed deltas, one gesture sends many of them.
+            step = int(-delta) if abs(delta) > 1 else (-1 if delta > 0 else 1)
+            step = max(-6, min(6, step))
+        if step:
+            self.canvas.yview_scroll(step, "units")
+        return "break"
+
+    def _wheel_linux(self, event) -> str | None:
+        if not self._pointer_is_inside():
+            return None
+        self.canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
+        return "break"
