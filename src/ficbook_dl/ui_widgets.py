@@ -101,6 +101,8 @@ class SoftButton(tk.Canvas):
     def _click(self, _event) -> None:
         if not self.enabled:
             return
+        if self.kind == "done":
+            return
         if self.kind == "chip":
             self.selected = not self.selected
             self._draw()
@@ -124,6 +126,8 @@ class SoftButton(tk.Canvas):
     def _palette(self) -> tuple[str, str, str]:
         if not self.enabled:
             return "#e5e5ea", "#8e8e93", ""
+        if self.kind == "done":
+            return "#248a3d", "#ffffff", ""
         if self.kind == "primary" or (self.kind == "chip" and self.selected):
             return (ACCENT_DARK if self._hover else ACCENT), "#ffffff", ""
         if self.kind == "nav":

@@ -16,7 +16,7 @@ from ficbook_dl.download import FORMATS, download_story, save_story
 from ficbook_dl.errors import Cancelled, FicbookError, message
 from ficbook_dl.formats.cover import to_jpeg
 from ficbook_dl.i18n import preferred_language, save_language, saved_status, t
-from ficbook_dl.parse import canonical_author_works_url, parse_author_works, parse_story
+from ficbook_dl.parse import canonical_author_works_url, canonical_story_url, parse_author_works, parse_story
 from ficbook_dl.ui_widgets import (
     ACCENT,
     BG,
@@ -50,6 +50,8 @@ class App:
         self.delay = tk.StringVar(value="1.5")
         self.format_chips: dict[str, SoftButton] = {}
         self.row_buttons: list[tuple[SoftButton, str]] = []
+        self.book_buttons: dict[str, SoftButton] = {}
+        self.downloaded_urls = _load_downloaded()
         self.nav: dict[str, SoftButton] = {}
         self.lang_chips: dict[str, SoftButton] = {}
         self.labels: list[tuple[tk.Label, str, str]] = []
@@ -301,7 +303,13 @@ class App:
         for label, key, size, weight in self.labels:
             label.configure(text=t(self.language, key), font=ui_font(size, weight))
         for button, key in [*self.buttons, *self.row_buttons]:
-            button.set_text(t(self.language, key))
+            state = getattr(button, "book_state", None)
+            if state == "downloaded":
+                button.kind = "done"
+            elif state == "saving":
+                button.kind = "primary"
+                button.set_enabled(False)
+            button.set_text(t(self.language, state or key))
         for key, button in self.nav.items():
             button.set_text(t(self.language, f"nav_{key}"))
         if not self.busy:
@@ -392,6 +400,13 @@ class App:
             if self.stop_flag.is_set():
                 self.root.after(0, self._log, t(language, "stopped"))
                 break
+            try:
+                story_url = canonical_story_url(url)
+            except FicbookError as exc:
+                failed += 1
+                self.root.after(0, self._log, t(language, "error_line", message=message(exc, language)))
+                continue
+            self.root.after(0, lambda current=story_url: self._set_book_state(current, "saving"))
             self.root.after(0, self._log, url)
             try:
                 story = download_story(
@@ -405,17 +420,21 @@ class App:
                 )
                 paths = save_story(story, Path(self.output.get()), formats, language)
             except Cancelled:
+                self.root.after(0, lambda current=story_url: self._set_book_state(current, "download"))
                 self.root.after(0, self._log, t(language, "stopped"))
                 break
             except FicbookError as exc:
                 failed += 1
+                self.root.after(0, lambda current=story_url: self._set_book_state(current, "download"))
                 self.root.after(0, self._log, t(language, "error_line", message=message(exc, language)))
                 continue
             except Exception as exc:
                 failed += 1
+                self.root.after(0, lambda current=story_url: self._set_book_state(current, "download"))
                 self.root.after(0, self._log, t(language, "error_line", message=str(exc)))
                 continue
             saved += 1
+            self.root.after(0, lambda current=story_url: self._remember_download(current))
             for path in paths:
                 self.root.after(0, self._log, t(language, "saved_path", path=path))
         summary = saved_status(language, saved, failed)
@@ -479,6 +498,7 @@ class App:
         self.show_books_button.set_enabled(True)
         self.library_status.configure(text=f"{name} · {t(self.language, 'books_count', n=len(works))}" if name else t(self.language, "books_count", n=len(works)))
         self.row_buttons.clear()
+        self.book_buttons.clear()
         for child in self.library_scroll.inner.winfo_children():
             child.destroy()
         for work in works:
@@ -487,12 +507,48 @@ class App:
             title = tk.Label(row, text=work.title, bg=CARD, fg=INK, font=ui_font(15, "bold"), anchor="w", wraplength=520, justify="left")
             title.pack(side="left", fill="x", expand=True, padx=16, pady=14)
             preview = SoftButton(row, t(self.language, "preview"), command=lambda item=work: self._preview(item), kind="secondary", width=150, height=34)
-            download = SoftButton(row, t(self.language, "download"), command=lambda item=work: self._start_download([item.url]), kind="primary", width=140, height=34)
+            already = work.url in self.downloaded_urls
+            download = SoftButton(
+                row,
+                t(self.language, "downloaded" if already else "download"),
+                command=None if already else (lambda item=work: self._start_download([item.url])),
+                kind="done" if already else "primary",
+                width=168,
+                height=34,
+            )
+            download.book_state = "downloaded" if already else "download"
             download.pack(side="right", padx=(0, 14), pady=12)
             preview.pack(side="right", padx=(0, 8), pady=12)
+            self.book_buttons[work.url] = download
             self.row_buttons.append((preview, "preview"))
             self.row_buttons.append((download, "download"))
         self.library_scroll.sync()
+
+    def _set_book_state(self, url: str, state: str) -> None:
+        button = self.book_buttons.get(url)
+        if button is None or button.book_state == "downloaded" and state != "downloaded":
+            return
+        button.book_state = state
+        if state == "downloaded":
+            button.kind = "done"
+            button.command = None
+            button.set_enabled(True)
+            button.set_text(t(self.language, "downloaded"))
+        elif state == "saving":
+            button.kind = "primary"
+            button.command = None
+            button.set_enabled(False)
+            button.set_text(t(self.language, "saving"))
+        else:
+            button.kind = "primary"
+            button.command = lambda current=url: self._start_download([current])
+            button.set_enabled(True)
+            button.set_text(t(self.language, "download"))
+
+    def _remember_download(self, url: str) -> None:
+        self.downloaded_urls.add(url)
+        _save_downloaded(self.downloaded_urls)
+        self._set_book_state(url, "downloaded")
 
     def _preview(self, work) -> None:
         self.library_status.configure(text=t(self.language, "loading"))
@@ -546,6 +602,26 @@ class App:
         self.log.insert("end", text + "\n")
         self.log.see("end")
         self.log.configure(state="disabled")
+
+
+def _downloaded_path() -> Path:
+    return Path.home() / ".config" / "ficbook-downloader" / "downloaded.txt"
+
+
+def _load_downloaded() -> set[str]:
+    try:
+        return {line.strip() for line in _downloaded_path().read_text(encoding="utf-8").splitlines() if line.strip()}
+    except OSError:
+        return set()
+
+
+def _save_downloaded(urls: set[str]) -> None:
+    path = _downloaded_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(sorted(urls)) + "\n", encoding="utf-8")
+    except OSError:
+        return
 
 
 if __name__ == "__main__":
