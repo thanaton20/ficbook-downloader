@@ -10,14 +10,15 @@ from pathlib import Path
 from bs4 import BeautifulSoup, NavigableString
 
 from ficbook_dl import __version__
+from ficbook_dl.i18n import t
 from ficbook_dl.parse import Story
 
 
-def write_fb2(story: Story, path: Path) -> None:
-    path.write_text(build_fb2(story), encoding="utf-8")
+def write_fb2(story: Story, path: Path, language: str = "en") -> None:
+    path.write_text(build_fb2(story, language), encoding="utf-8")
 
 
-def build_fb2(story: Story) -> str:
+def build_fb2(story: Story, language: str = "en") -> str:
     authors = "\n".join(_person("author", name) for name in (story.authors or [story.author]))
     translators = "\n".join(_person("translator", name) for name in story.translators)
     sequence = ""
@@ -36,7 +37,7 @@ def build_fb2(story: Story) -> str:
         ]
         if value
     )
-    annotation = _annotation(story)
+    annotation = _annotation(story, language)
     cover = ""
     binary = ""
     if story.cover_jpeg:
@@ -81,10 +82,10 @@ def build_fb2(story: Story) -> str:
 """
 
 
-def _annotation(story: Story) -> str:
+def _annotation(story: Story, language: str = "en") -> str:
     paragraphs = _plain_paragraphs(story.description)
     if story.dedication:
-        paragraphs.append("Посвящение: " + story.dedication)
+        paragraphs.append(f"{t(language, 'dedication')}: " + story.dedication)
     paragraphs.extend(_plain_paragraphs(story.notes))
     if not paragraphs:
         return ""

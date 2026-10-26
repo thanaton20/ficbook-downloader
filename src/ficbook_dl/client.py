@@ -6,7 +6,7 @@ import time
 
 from curl_cffi import requests
 
-from ficbook_dl.errors import SecurityCheck
+from ficbook_dl.errors import SecurityCheck, described
 
 _SECURITY_TITLE = "<title>Проверка безопасности"
 
@@ -31,9 +31,7 @@ class Client:
         response = self._session.get(url, timeout=40)
         text = response.text
         if response.status_code == 403 or _SECURITY_TITLE in text[:2000]:
-            raise SecurityCheck(
-                "Ficbook returned a security check instead of the story page."
-            )
+            raise described(SecurityCheck, "security_check")
         response.raise_for_status()
         return text
 

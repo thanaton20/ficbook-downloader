@@ -9,7 +9,8 @@ from urllib.parse import urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup, NavigableString
 
-from ficbook_dl.errors import AgeCheck, InvalidLink, MissingText, SecurityCheck
+from ficbook_dl.errors import AgeCheck, InvalidLink, MissingText, SecurityCheck, described
+from ficbook_dl.i18n import t
 
 _STORY_PATH = re.compile(r"^/readfic/([^/]+)")
 _AUTHOR_PATH = re.compile(r"^/authors/[^/]+/?$")
@@ -64,24 +65,24 @@ def canonical_story_url(value: str) -> str:
     """Accept a story id or any /readfic/<id> link and return the story URL."""
     raw = value.strip()
     if not raw:
-        raise InvalidLink("Pass a ficbook story link, like https://ficbook.net/readfic/12345.")
+        raise described(InvalidLink, "empty_link")
 
     if "://" not in raw and "/" not in raw:
         if not re.fullmatch(r"[0-9A-Za-z-]+", raw):
-            raise InvalidLink(f"Not a ficbook story link: {value}")
+            raise described(InvalidLink, "not_ficbook", value=value)
         return f"https://ficbook.net/readfic/{raw}"
 
     parsed = urlparse(raw)
     host = parsed.netloc.lower().removeprefix("www.")
     if host != "ficbook.net":
-        raise InvalidLink(f"Not a ficbook story link: {value}")
+        raise described(InvalidLink, "not_ficbook", value=value)
     match = _STORY_PATH.match(parsed.path)
     if not match:
-        raise InvalidLink(f"Not a ficbook story link: {value}")
+        raise described(InvalidLink, "not_ficbook", value=value)
     return f"https://ficbook.net/readfic/{match.group(1)}"
 
 
-def parse_story(html: str, page_url: str) -> Story:
+def parse_story(html: str, page_url: str, language: str = "en") -> Story:
     _reject_security_page(html)
     soup = BeautifulSoup(html, "html.parser")
     story_url = canonical_story_url(page_url)
@@ -108,16 +109,14 @@ def parse_story(html: str, page_url: str) -> Story:
 
     chapters = _chapters(soup, story_id)
     if not chapters:
-        paragraphs = _chapter_paragraphs(soup)
+        paragraphs = _chapter_paragraphs(soup, language)
         if paragraphs:
             heading = _text(header.select_one("h2") or soup.select_one("h2")) or title
             chapters = [Chapter(title=heading, url=story_url, paragraphs=paragraphs)]
         elif soup.select_one("#adultCoverWarning"):
-            raise AgeCheck(
-                "Ficbook is showing an age check instead of the text for " + story_url
-            )
+            raise described(AgeCheck, "age_check", url=story_url)
         else:
-            raise MissingText(f"No chapters or text found at {story_url}")
+            raise described(MissingText, "missing_story", url=story_url)
 
     rating = _text(header.select_one("[class*='ds-label-rating-']"))
     status = _text(header.select_one("[class*='ds-label-status-']"))
@@ -156,18 +155,16 @@ def parse_chapter(html: str, chapter_url: str) -> str:
     return chapter.body
 
 
-def parse_chapter_content(html: str, chapter_url: str) -> Chapter:
+def parse_chapter_content(html: str, chapter_url: str, language: str = "en") -> Chapter:
     _reject_security_page(html)
     soup = BeautifulSoup(html, "html.parser")
-    paragraphs = _chapter_paragraphs(soup)
+    paragraphs = _chapter_paragraphs(soup, language)
     if paragraphs:
-        title = _text(soup.select_one("h2")) or "Chapter"
+        title = _text(soup.select_one("h2")) or t(language, "chapter")
         return Chapter(title=title, url=chapter_url, paragraphs=paragraphs)
     if soup.select_one("#adultCoverWarning"):
-        raise AgeCheck(
-            "Ficbook is showing an age check instead of the text for " + chapter_url
-        )
-    raise MissingText(f"No chapter text at {chapter_url}")
+        raise described(AgeCheck, "age_check", url=chapter_url)
+    raise described(MissingText, "missing_chapter", url=chapter_url)
 
 
 def series_index(html: str, story_id: str) -> int | None:
@@ -200,9 +197,7 @@ def filename(story: Story) -> str:
 
 def _reject_security_page(html: str) -> None:
     if _SECURITY_TITLE in html[:2000]:
-        raise SecurityCheck(
-            "Ficbook returned a security check instead of the story page."
-        )
+        raise described(SecurityCheck, "security_check")
 
 
 def _chapters(soup: BeautifulSoup, story_id: str) -> list[Chapter]:
@@ -282,22 +277,23 @@ def _field_links(root, label: str) -> list[str]:
     return names or ([_field_text(root, label)] if _field_text(root, label) else [])
 
 
-def _chapter_paragraphs(soup: BeautifulSoup) -> list[str]:
+def _chapter_paragraphs(soup: BeautifulSoup, language: str = "en") -> list[str]:
     node = (
         soup.select_one("#content")
         or soup.select_one(".part_text")
         or soup.select_one("[itemprop='articleBody']")
     )
     paragraphs: list[str] = []
+    note_label = f"<i>{escape(t(language, 'notes'))}</i>"
     head = _note_lines(soup.select_one("div.part-comment-top"))
     if head:
-        paragraphs.append("<i>Примечания</i>")
+        paragraphs.append(note_label)
         paragraphs.extend(head)
     if node is not None:
         paragraphs.extend(_html_paragraphs(node))
     foot = _note_lines(soup.select_one("div.part-comment-bottom"))
     if foot:
-        paragraphs.append("<i>Примечания</i>")
+        paragraphs.append(note_label)
         paragraphs.extend(foot)
     return paragraphs
 
@@ -329,9 +325,9 @@ def _inline_markup(node) -> str:
                 continue
             if name in ("i", "em", "b", "strong"):
                 tag = "i" if name in ("i", "em") else "b"
-                inner = _inline_markup(child).strip()
-                if inner:
-                    chunks.append(f"<{tag}>{inner}</{tag}>")
+                inner = _inline_markup(child)
+                if inner.strip():
+                    chunks.append(_balanced_tag(tag, inner))
                 continue
             if name in ("p", "div", "li", "blockquote"):
                 if chunks and not chunks[-1].endswith("\n"):
@@ -343,6 +339,21 @@ def _inline_markup(node) -> str:
 
     walk(node)
     return "".join(chunks)
+
+
+def _balanced_tag(tag: str, inner: str) -> str:
+    """Keep italics and bold inside a single paragraph.
+
+    A letter on ficbook is often one <i> with a newline between sentences.
+    Splitting that into paragraphs must close the tag on each line, or the
+    EPUB page is not valid XML.
+    """
+    lines = inner.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    rendered = []
+    for line in lines:
+        stripped = line.strip()
+        rendered.append(f"<{tag}>{stripped}</{tag}>" if stripped else "")
+    return "\n".join(rendered)
 
 
 def _plain_lines(text: str) -> list[str]:

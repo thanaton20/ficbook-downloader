@@ -1,6 +1,6 @@
 # ficbook-downloader
 
-English | [Русский](README.ru.md)
+English | [Русский](README.ru.md) | [Українська](README.uk.md)
 
 A command-line and desktop app that saves [ficbook.net](https://ficbook.net/) stories as UTF-8 text, EPUB, and FB2. The window runs on macOS and Windows.
 
@@ -8,7 +8,15 @@ You give it story links. It reads each public story page, follows the chapter li
 
 Ficbook answers ordinary HTTP libraries with a security check. This app uses [curl_cffi](https://github.com/lexiforest/curl_cffi) so those requests look like a normal browser connection and the public story HTML comes back.
 
-## Install
+## Download for Mac
+
+Download [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg). This build is for Apple silicon Macs.
+
+1. Open the disk image.
+2. Drag **Ficbook Downloader** onto the Applications folder.
+3. Open the app from Applications. The first time, macOS may say the developer cannot be verified. Control-click the app, choose **Open**, then click **Open** again.
+
+## Install from source
 
 ```bash
 python3 -m venv .venv
@@ -24,7 +32,7 @@ pip install git+https://github.com/thanaton20/ficbook-downloader.git
 
 ## Use the window
 
-On macOS, after the install commands above:
+The downloaded app opens this window. From a source install, run:
 
 ```bash
 ficbook-gui
@@ -44,6 +52,7 @@ ficbook-gui
 3. Under **Formats**, leave **TXT**, **EPUB**, and **FB2** checked, or clear the ones you do not want.
 4. **Pause (seconds)** is the wait between requests. It starts at `1.5`.
 5. Click **Download**. The button changes to **Stop**. The log under it prints each chapter, then a `saved …` line for every file.
+6. **Language**, at the top right, switches the window among English, Русский, and Українська. The choice is remembered. Text-file labels such as Author and Series follow it. On the command line, use `--lang en`, `--lang ru`, or `--lang uk`.
 
 The status line next to the button ends with how many stories were saved. Click **Stop** to halt before the next chapter. Files already written stay where they are.
 

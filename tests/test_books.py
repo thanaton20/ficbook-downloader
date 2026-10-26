@@ -76,6 +76,21 @@ class BookTests(unittest.TestCase):
         ElementTree.fromstring(opf)
         ElementTree.fromstring(first)
 
+    def test_multiline_italic_epub_is_valid_xml(self):
+        story = sample()
+        story.chapters = [
+            Chapter(
+                title="Letter",
+                url="https://ficbook.net/readfic/9/1",
+                paragraphs=["<i>Hello</i>", "<i>there</i>"],
+            )
+        ]
+        with zipfile.ZipFile(io.BytesIO(build_epub(story))) as archive:
+            page = archive.read("OEBPS/chapter-001.xhtml")
+        ElementTree.fromstring(page)
+        text = page.decode("utf-8")
+        self.assertEqual(text.count("<i>"), text.count("</i>"))
+
     def test_fb2_has_chapters_series_author_and_cover(self):
         root = ElementTree.fromstring(build_fb2(sample()))
         tags = [local(node.tag) for node in root.iter()]

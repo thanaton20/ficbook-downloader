@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import html
 from pathlib import Path
+from xml.etree import ElementTree
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
 
+from bs4 import BeautifulSoup
+
+from ficbook_dl.i18n import t
 from ficbook_dl.parse import Story
 
 _STYLE = """
@@ -18,11 +22,11 @@ p.note { font-style: italic; text-indent: 0; }
 """
 
 
-def write_epub(story: Story, path: Path) -> None:
-    path.write_bytes(build_epub(story))
+def write_epub(story: Story, path: Path, language: str = "en") -> None:
+    path.write_bytes(build_epub(story, language))
 
 
-def build_epub(story: Story) -> bytes:
+def build_epub(story: Story, language: str = "en") -> bytes:
     import io
 
     buffer = io.BytesIO()
@@ -39,7 +43,7 @@ def build_epub(story: Story) -> bytes:
             _add(archive, "OEBPS/cover.xhtml", _cover_page(story))
         for index, chapter in enumerate(story.chapters, start=1):
             _add(archive, f"OEBPS/chapter-{index:03d}.xhtml", _chapter_page(chapter.title, chapter.paragraphs))
-        _add(archive, "OEBPS/content.opf", _opf(story))
+        _add(archive, "OEBPS/content.opf", _opf(story, language))
     return buffer.getvalue()
 
 
@@ -59,7 +63,7 @@ def _container() -> str:
 """
 
 
-def _opf(story: Story) -> str:
+def _opf(story: Story, language: str = "en") -> str:
     creators = []
     for index, name in enumerate(story.authors or [story.author], start=1):
         creators.append(f'<dc:creator id="author-{index}">{_xml(name)}</dc:creator>')
@@ -104,7 +108,7 @@ def _opf(story: Story) -> str:
             f'<item id="chapter-{index}" href="chapter-{index:03d}.xhtml" media-type="application/xhtml+xml"/>'
         )
         spine_chapters.append(f'<itemref idref="chapter-{index}"/>')
-    description = _annotation_text(story)
+    description = _annotation_text(story, language)
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0" xml:lang="{_xml(story.language)}">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -196,7 +200,7 @@ def _chapter_page(title: str, paragraphs: list[str]) -> str:
     blocks = [f"<h1>{_xml(title)}</h1>"]
     for paragraph in paragraphs:
         if paragraph.strip():
-            blocks.append(f"<p>{paragraph}</p>")
+            blocks.append(_paragraph(paragraph))
     body = "\n".join(blocks)
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -211,10 +215,20 @@ def _chapter_page(title: str, paragraphs: list[str]) -> str:
 """
 
 
-def _annotation_text(story: Story) -> str:
+def _paragraph(fragment: str) -> str:
+    wrapped = f"<p>{fragment}</p>"
+    try:
+        ElementTree.fromstring(f"<body>{wrapped}</body>")
+    except ElementTree.ParseError:
+        text = BeautifulSoup(fragment, "html.parser").get_text()
+        wrapped = f"<p>{html.escape(text)}</p>"
+    return wrapped
+
+
+def _annotation_text(story: Story, language: str = "en") -> str:
     parts = [story.description]
     if story.dedication:
-        parts.append("Посвящение: " + story.dedication)
+        parts.append(f"{t(language, 'dedication')}: " + story.dedication)
     if story.notes:
         parts.append(story.notes)
     return "\n\n".join(part for part in parts if part)

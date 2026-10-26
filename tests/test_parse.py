@@ -136,6 +136,15 @@ class ParseTests(unittest.TestCase):
             2,
         )
 
+    def test_italic_across_lines_closes_on_each_paragraph(self):
+        from ficbook_dl.parse import parse_chapter_content
+
+        chapter = parse_chapter_content(
+            "<div id='content'><i>Hello\nthere</i>\nNext</div>",
+            "https://ficbook.net/readfic/1",
+        )
+        self.assertEqual(chapter.paragraphs, ["<i>Hello</i>", "<i>there</i>", "Next"])
+
     def test_italic_line_is_its_own_paragraph(self):
         body = parse_chapter(
             '<div id="content">Hello <i>there</i>\nNext</div>',
