@@ -1,7 +1,8 @@
 import unittest
 
 from ficbook_dl.errors import AgeCheck, InvalidLink, MissingText, SecurityCheck
-from ficbook_dl.parse import canonical_story_url, parse_chapter, parse_story, render
+from ficbook_dl.formats.txt import render
+from ficbook_dl.parse import canonical_story_url, parse_chapter, parse_story, series_index
 
 STORY = """
 <html><head><title>Story</title></head><body>
@@ -59,13 +60,13 @@ class ParseTests(unittest.TestCase):
             story.chapters[0].url,
             "https://ficbook.net/readfic/7/10",
         )
-        self.assertIsNone(story.chapters[0].body)
+        self.assertEqual(story.chapters[0].paragraphs, [])
 
     def test_single_page_story_keeps_its_text(self):
         story = parse_story(SINGLE, "https://ficbook.net/readfic/3")
         self.assertEqual(story.chapters[0].body, "Lone chapter.")
         text = render(story)
-        self.assertIn("Only One\nBea\nhttps://ficbook.net/readfic/3", text)
+        self.assertIn("Only One\nAuthor: Bea\nhttps://ficbook.net/readfic/3", text)
         self.assertIn("Lone chapter.", text)
 
     def test_chapter_normalizes_newlines(self):
@@ -82,6 +83,65 @@ class ParseTests(unittest.TestCase):
                 "<html><title>Проверка безопасности | Книга Фанфиков</title></html>",
                 "https://ficbook.net/readfic/9/1",
             )
+
+    def test_series_author_cover_and_paragraphs(self):
+        html = """
+        <html><head>
+          <meta property="og:image" content="https://assets.teinon.net/assets/design/ogimage/socials_ru.png"/>
+          <meta property="og:image" content="https://assets.teinon.net/fanfic-covers/m_cover.webp"/>
+        </head><body>
+        <section class="fanfic-hat">
+          <h1 class="heading">Ink</h1>
+          <a class="word-break" href="/authors/5">Plush</a>
+          <div class="ds-label ds-label-translate">Перевод</div>
+          <div class="ds-label ds-label-rating-NC-21">NC-21</div>
+          <div class="ds-label ds-label-status-finished">Завершён</div>
+          <div class="direction direction-slash">Слэш</div>
+          <div class="promo"><div class="direction">Чужое</div></div>
+          <div class="description word-break">
+            <strong>Автор оригинала:</strong><div>Daniel May</div>
+            <strong>Серия:</strong><div><a href="/series/20385">Свежий вкус</a></div>
+            <strong>Фэндом:</strong><div><a href="/fanfiction/x">Ориджиналы</a></div>
+            <strong>Пэйринг и персонажи:</strong><div><a href="/pairings/x">А/Б</a></div>
+            <strong>Метки:</strong><div><a href="/tags/1">Романтика</a></div>
+            <strong>Описание:</strong><div>Описание книги</div>
+            <strong>Посвящение:</strong><div>Другу</div>
+          </div>
+        </section>
+        <ul class="list-of-fanfic-parts">
+          <li><a class="part-link" href="/readfic/9/1#part_content"><h3>Первая</h3></a></li>
+          <li><a class="part-link" href="/readfic/9/2#part_content"><h3>Вторая</h3></a></li>
+        </ul>
+        </body></html>
+        """
+        story = parse_story(html, "https://ficbook.net/readfic/9")
+        self.assertEqual(story.authors, ["Daniel May"])
+        self.assertEqual(story.translators, ["Plush"])
+        self.assertEqual(story.series_name, "Свежий вкус")
+        self.assertEqual(story.series_url, "https://ficbook.net/series/20385")
+        self.assertEqual(story.cover_url, "https://assets.teinon.net/fanfic-covers/m_cover.webp")
+        self.assertEqual(story.fandoms, ["Ориджиналы"])
+        self.assertEqual(story.tags, ["Романтика"])
+        self.assertEqual(story.directions, ["Слэш"])
+        self.assertEqual([chapter.title for chapter in story.chapters], ["Первая", "Вторая"])
+        self.assertEqual(
+            series_index(
+                """
+                <a class="visit-link" href="/readfic/8">Other</a>
+                <a class="visit-link" href="/readfic/9">Ink</a>
+                <a class="js-promo-fanfic" href="/readfic/100">Ad</a>
+                """,
+                "9",
+            ),
+            2,
+        )
+
+    def test_italic_line_is_its_own_paragraph(self):
+        body = parse_chapter(
+            '<div id="content">Hello <i>there</i>\nNext</div>',
+            "https://ficbook.net/readfic/7/10",
+        )
+        self.assertEqual(body, "Hello there\n\nNext")
 
     def test_missing_chapter_text(self):
         with self.assertRaises(MissingText):

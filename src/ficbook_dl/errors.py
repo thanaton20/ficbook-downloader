@@ -19,3 +19,7 @@ class AgeCheck(FicbookError):
 
 class MissingText(FicbookError):
     """A chapter page did not include readable text."""
+
+
+class Cancelled(FicbookError):
+    """The user stopped the download."""

@@ -37,6 +37,12 @@ class Client:
         response.raise_for_status()
         return text
 
+    def get_bytes(self, url: str) -> bytes:
+        self._pause()
+        response = self._session.get(url, timeout=40)
+        response.raise_for_status()
+        return response.content
+
     def _pause(self) -> None:
         if self._last:
             remaining = self.delay - (time.monotonic() - self._last)

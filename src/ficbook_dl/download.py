@@ -1,30 +1,73 @@
-"""Fetch a story and write it to a text file."""
+"""Fetch a story and write txt, EPUB, and FB2 files."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from ficbook_dl.client import Client
-from ficbook_dl.parse import Story, canonical_story_url, filename, parse_chapter, parse_story, render
+from ficbook_dl.errors import Cancelled
+from ficbook_dl.formats import WRITERS
+from ficbook_dl.formats.cover import to_jpeg
+from ficbook_dl.parse import (
+    Story,
+    canonical_story_url,
+    file_stem,
+    parse_chapter_content,
+    parse_story,
+    series_index,
+)
+
+FORMATS = ("txt", "epub", "fb2")
 
 
-def download_story(client: Client, link: str, on_chapter=None) -> Story:
+def download_story(client: Client, link: str, on_chapter=None, stop=None) -> Story:
+    if stop and stop():
+        raise Cancelled("Stopped.")
     story_url = canonical_story_url(link)
     story = parse_story(client.get(story_url), story_url)
+    if story.series_url and story.series_index is None:
+        try:
+            story.series_index = series_index(client.get(story.series_url), story.story_id)
+        except Exception:
+            story.series_index = None
+    if story.cover_url and not story.cover_jpeg:
+        try:
+            story.cover_jpeg = to_jpeg(client.get_bytes(story.cover_url))
+        except Exception:
+            story.cover_jpeg = None
     total = len(story.chapters)
     for index, chapter in enumerate(story.chapters, start=1):
+        if stop and stop():
+            raise Cancelled("Stopped.")
         if on_chapter:
             on_chapter(index, total, chapter.title)
-        if chapter.body:
+        if chapter.paragraphs:
             continue
-        chapter.body = parse_chapter(client.get(chapter.url), chapter.url)
+        loaded = parse_chapter_content(client.get(chapter.url), chapter.url)
+        chapter.paragraphs = loaded.paragraphs
     return story
 
 
-def save_story(story: Story, directory: Path) -> Path:
+def save_story(story: Story, directory: Path, formats: tuple[str, ...] | list[str] = FORMATS) -> list[Path]:
+    unknown = [fmt for fmt in formats if fmt not in WRITERS]
+    if unknown:
+        raise ValueError("Unknown format: " + ", ".join(unknown))
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / filename(story)
-    if path.exists() and story.url not in path.read_text(encoding="utf-8")[:500]:
-        path = directory / f"{path.stem} [{story.story_id}].txt"
-    path.write_text(render(story), encoding="utf-8")
-    return path
+    stem = _stem_for(story, directory)
+    paths: list[Path] = []
+    for fmt in formats:
+        path = directory / f"{stem}.{fmt}"
+        WRITERS[fmt](story, path)
+        paths.append(path)
+    return paths
+
+
+def _stem_for(story: Story, directory: Path) -> str:
+    stem = file_stem(story)
+    existing = directory / f"{stem}.txt"
+    if not existing.exists():
+        return stem
+    head = existing.read_text(encoding="utf-8", errors="ignore")[:800]
+    if story.url in head:
+        return stem
+    return f"{stem} [{story.story_id}]"

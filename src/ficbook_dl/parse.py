@@ -4,22 +4,33 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from html import escape
 from urllib.parse import urljoin, urlparse, urlunparse
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 from ficbook_dl.errors import AgeCheck, InvalidLink, MissingText, SecurityCheck
 
 _STORY_PATH = re.compile(r"^/readfic/([^/]+)")
 _AUTHOR_PATH = re.compile(r"^/authors/[^/]+/?$")
 _SECURITY_TITLE = "<title>Проверка безопасности"
+_UI_LINES = {"Спойлеры", "Показать", "Скрыть", "Спойлер"}
 
 
 @dataclass
 class Chapter:
     title: str
     url: str
-    body: str | None = None
+    paragraphs: list[str] = field(default_factory=list)
+
+    @property
+    def body(self) -> str:
+        chunks = []
+        for paragraph in self.paragraphs:
+            text = BeautifulSoup(paragraph, "html.parser").get_text().strip()
+            if text:
+                chunks.append(text)
+        return "\n\n".join(chunks)
 
 
 @dataclass
@@ -31,6 +42,22 @@ class Story:
     description: str = ""
     details: str = ""
     chapters: list[Chapter] = field(default_factory=list)
+    authors: list[str] = field(default_factory=list)
+    translators: list[str] = field(default_factory=list)
+    series_name: str = ""
+    series_index: int | None = None
+    series_url: str = ""
+    cover_url: str = ""
+    cover_jpeg: bytes | None = None
+    fandoms: list[str] = field(default_factory=list)
+    pairings: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    directions: list[str] = field(default_factory=list)
+    rating: str = ""
+    status: str = ""
+    dedication: str = ""
+    notes: str = ""
+    language: str = "ru"
 
 
 def canonical_story_url(value: str) -> str:
@@ -59,14 +86,32 @@ def parse_story(html: str, page_url: str) -> Story:
     soup = BeautifulSoup(html, "html.parser")
     story_url = canonical_story_url(page_url)
     story_id = urlparse(story_url).path.rsplit("/", 1)[-1]
-    title = _text(soup.select_one("h1.heading, h1")) or story_id
-    authors = _authors(soup)
+    header = soup.select_one("section.chapter-info") or soup.select_one(".fanfic-hat") or soup
+    hat = soup.select_one(".fanfic-hat")
+    info = None
+    for root in (header, hat, soup):
+        if root is None:
+            continue
+        info = root.select_one("div.description.word-break")
+        if info is not None:
+            break
+    info = info or header
+    title = _text(header.select_one("h1.heading, h1")) or _text(soup.select_one("h1")) or story_id
+    posted_by = _authors(header) or _authors(hat or soup)
+    originals = _split_names(_field_text(info, "Автор оригинала:"))
+    if originals:
+        authors = originals
+        translators = [name for name in posted_by if name not in originals]
+    else:
+        authors = posted_by
+        translators = []
+
     chapters = _chapters(soup, story_id)
     if not chapters:
-        body = _chapter_text(soup)
-        if body:
-            heading = _text(soup.select_one("h2")) or title
-            chapters = [Chapter(title=heading, url=story_url, body=body)]
+        paragraphs = _chapter_paragraphs(soup)
+        if paragraphs:
+            heading = _text(header.select_one("h2") or soup.select_one("h2")) or title
+            chapters = [Chapter(title=heading, url=story_url, paragraphs=paragraphs)]
         elif soup.select_one("#adultCoverWarning"):
             raise AgeCheck(
                 "Ficbook is showing an age check instead of the text for " + story_url
@@ -74,23 +119,50 @@ def parse_story(html: str, page_url: str) -> Story:
         else:
             raise MissingText(f"No chapters or text found at {story_url}")
 
+    rating = _text(header.select_one("[class*='ds-label-rating-']"))
+    status = _text(header.select_one("[class*='ds-label-status-']"))
+    directions = _unique(
+        _text(node)
+        for node in header.select("[class*='direction']")
+        if _text(node) and node.find_parent(class_=re.compile(r"promo|fanfic-inline")) is None
+    )
+    series_name, series_url = _series(info)
     return Story(
         story_id=story_id,
         title=title,
         author=", ".join(authors) or "Unknown",
         url=story_url,
-        description=_text(soup.select_one("[itemprop='description']")),
-        details=_details(soup),
+        description=_field_text(info, "Описание:"),
+        details=" · ".join(part for part in (rating, status) if part),
         chapters=chapters,
+        authors=authors,
+        translators=translators,
+        series_name=series_name,
+        series_url=series_url,
+        cover_url=_cover_url(soup),
+        fandoms=_field_links(info, "Фэндом:"),
+        pairings=_field_links(info, "Пэйринг и персонажи:"),
+        tags=_field_links(info, "Метки:"),
+        directions=directions,
+        rating=rating,
+        status=status,
+        dedication=_field_text(info, "Посвящение:"),
+        notes=_field_text(info, "Примечания:"),
     )
 
 
 def parse_chapter(html: str, chapter_url: str) -> str:
+    chapter = parse_chapter_content(html, chapter_url)
+    return chapter.body
+
+
+def parse_chapter_content(html: str, chapter_url: str) -> Chapter:
     _reject_security_page(html)
     soup = BeautifulSoup(html, "html.parser")
-    body = _chapter_text(soup)
-    if body:
-        return body
+    paragraphs = _chapter_paragraphs(soup)
+    if paragraphs:
+        title = _text(soup.select_one("h2")) or "Chapter"
+        return Chapter(title=title, url=chapter_url, paragraphs=paragraphs)
     if soup.select_one("#adultCoverWarning"):
         raise AgeCheck(
             "Ficbook is showing an age check instead of the text for " + chapter_url
@@ -98,25 +170,32 @@ def parse_chapter(html: str, chapter_url: str) -> str:
     raise MissingText(f"No chapter text at {chapter_url}")
 
 
-def render(story: Story) -> str:
-    lines = [story.title, story.author, story.url]
-    if story.details:
-        lines.append(story.details)
-    lines.append("")
-    if story.description:
-        lines.extend([story.description, ""])
-    for index, chapter in enumerate(story.chapters):
-        if index:
-            lines.append("")
-        lines.extend([chapter.title, "", chapter.body or ""])
-    return "\n".join(lines).rstrip() + "\n"
+def series_index(html: str, story_id: str) -> int | None:
+    """Return the 1-based position of a story on a ficbook series page."""
+    soup = BeautifulSoup(html, "html.parser")
+    seen: list[str] = []
+    for anchor in soup.select("a.visit-link[href*='/readfic/']"):
+        path = urlparse(urljoin("https://ficbook.net", anchor.get("href") or "")).path.rstrip("/")
+        match = re.fullmatch(r"/readfic/([^/]+)", path)
+        if not match:
+            continue
+        found = match.group(1)
+        if found not in seen:
+            seen.append(found)
+    if story_id not in seen:
+        return None
+    return seen.index(story_id) + 1
 
 
-def filename(story: Story) -> str:
+def file_stem(story: Story) -> str:
     raw = f"{story.title} — {story.author}"
     cleaned = re.sub(r'[\\/:*?"<>|]', " ", raw)
     cleaned = re.sub(r"\s+", " ", cleaned).strip().rstrip(".")
-    return f"{(cleaned[:120] or story.story_id)}.txt"
+    return cleaned[:120] or story.story_id
+
+
+def filename(story: Story) -> str:
+    return f"{file_stem(story)}.txt"
 
 
 def _reject_security_page(html: str) -> None:
@@ -143,10 +222,10 @@ def _chapters(soup: BeautifulSoup, story_id: str) -> list[Chapter]:
     return chapters
 
 
-def _authors(soup: BeautifulSoup) -> list[str]:
+def _authors(root) -> list[str]:
     names: list[str] = []
     seen: set[str] = set()
-    for anchor in soup.select("a.word-break[href*='/authors/'], a[itemprop='author']"):
+    for anchor in root.select("a.word-break[href*='/authors/'], a[itemprop='author']"):
         href = urlparse(anchor.get("href") or "").path
         if not _AUTHOR_PATH.match(href) or href in seen:
             continue
@@ -158,25 +237,136 @@ def _authors(soup: BeautifulSoup) -> list[str]:
     return names
 
 
-def _details(soup: BeautifulSoup) -> str:
-    rating = _text(soup.select_one("[class*='ds-label-rating-']"))
-    status = _text(soup.select_one("[class*='ds-label-status-']"))
-    return " · ".join(part for part in (rating, status) if part)
+def _series(root) -> tuple[str, str]:
+    sibling = _field_node(root, "Серия:")
+    if sibling is None:
+        return "", ""
+    link = sibling.find("a", href=True)
+    if link is None:
+        return _text(sibling), ""
+    return _text(link), urljoin("https://ficbook.net", link["href"])
 
 
-def _chapter_text(soup: BeautifulSoup) -> str | None:
+def _cover_url(soup: BeautifulSoup) -> str:
+    for meta in soup.select("meta[property='og:image']"):
+        content = (meta.get("content") or "").strip()
+        if "/fanfic-covers/" in content:
+            return content
+    return ""
+
+
+def _field_node(root, label: str):
+    for strong in root.find_all("strong"):
+        if _text(strong).startswith(label):
+            return strong.find_next_sibling("div")
+    return None
+
+
+def _field_text(root, label: str) -> str:
+    node = _field_node(root, label)
+    if node is None:
+        return ""
+    lines = []
+    for line in node.get_text("\n", strip=True).splitlines():
+        cleaned = re.sub(r"\s+", " ", line).strip()
+        if cleaned and cleaned not in _UI_LINES:
+            lines.append(cleaned)
+    return "\n".join(lines)
+
+
+def _field_links(root, label: str) -> list[str]:
+    node = _field_node(root, label)
+    if node is None:
+        return []
+    names = [_text(anchor) for anchor in node.find_all("a") if _text(anchor)]
+    return names or ([_field_text(root, label)] if _field_text(root, label) else [])
+
+
+def _chapter_paragraphs(soup: BeautifulSoup) -> list[str]:
     node = (
         soup.select_one("#content")
         or soup.select_one(".part_text")
         or soup.select_one("[itemprop='articleBody']")
     )
+    paragraphs: list[str] = []
+    head = _note_lines(soup.select_one("div.part-comment-top"))
+    if head:
+        paragraphs.append("<i>Примечания</i>")
+        paragraphs.extend(head)
+    if node is not None:
+        paragraphs.extend(_html_paragraphs(node))
+    foot = _note_lines(soup.select_one("div.part-comment-bottom"))
+    if foot:
+        paragraphs.append("<i>Примечания</i>")
+        paragraphs.extend(foot)
+    return paragraphs
+
+
+def _note_lines(node) -> list[str]:
     if node is None:
-        return None
-    for bad in node.select("script, style"):
-        bad.decompose()
-    text = node.get_text().replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-    return text or None
+        return []
+    return [escape(line) for line in _plain_lines(node.get_text("\n"))]
+
+
+def _html_paragraphs(node) -> list[str]:
+    markup = _inline_markup(node)
+    return [line.strip() for line in markup.split("\n") if line.strip()]
+
+
+def _inline_markup(node) -> str:
+    chunks: list[str] = []
+
+    def walk(current) -> None:
+        for child in getattr(current, "children", []):
+            if isinstance(child, NavigableString):
+                chunks.append(escape(str(child)).replace("\r\n", "\n").replace("\r", "\n"))
+                continue
+            name = child.name
+            if name in ("script", "style"):
+                continue
+            if name == "br":
+                chunks.append("\n")
+                continue
+            if name in ("i", "em", "b", "strong"):
+                tag = "i" if name in ("i", "em") else "b"
+                inner = _inline_markup(child).strip()
+                if inner:
+                    chunks.append(f"<{tag}>{inner}</{tag}>")
+                continue
+            if name in ("p", "div", "li", "blockquote"):
+                if chunks and not chunks[-1].endswith("\n"):
+                    chunks.append("\n")
+                walk(child)
+                chunks.append("\n")
+                continue
+            walk(child)
+
+    walk(node)
+    return "".join(chunks)
+
+
+def _plain_lines(text: str) -> list[str]:
+    lines = []
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        cleaned = re.sub(r"\s+", " ", line).strip()
+        if cleaned and cleaned not in _UI_LINES:
+            lines.append(cleaned)
+    return lines
+
+
+def _split_names(value: str) -> list[str]:
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def _unique(values) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _text(node) -> str:
