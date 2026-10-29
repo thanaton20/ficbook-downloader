@@ -19,6 +19,8 @@ for package in ("curl_cffi", "bs4", "PIL"):
 hiddenimports += [
     "ficbook_dl",
     "ficbook_dl.gui",
+    "ficbook_dl.mac_window",
+    "ficbook_dl.ui_widgets",
     "ficbook_dl.i18n",
     "ficbook_dl.download",
     "ficbook_dl.client",

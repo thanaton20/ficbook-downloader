@@ -1,30 +1,43 @@
-"""Rounded controls that follow a macOS-style layout."""
+"""Flat controls and the colour palette for the desktop window."""
 
 from __future__ import annotations
 
 import sys
 import tkinter as tk
 
-BG = "#f5f5f7"
-SIDEBAR = "#ececef"
-CARD = "#ffffff"
-INK = "#1d1d1f"
-MUTED = "#6e6e73"
-LINE = "#d2d2d7"
-ACCENT = "#6d28d9"
-ACCENT_DARK = "#5b21b6"
-SOFT = "#f5f3ff"
+# A quiet sage palette: muted ink on pale grey-green, one bookbinding green for actions.
+BG = "#eef1ef"
+SIDEBAR = "#e4e9e6"
+CARD = "#fbfcfb"
+INK = "#26332f"
+MUTED = "#69756f"
+LINE = "#d4dcd8"
+ACCENT = "#3f6b60"
+ACCENT_DARK = "#33574e"
+SOFT = "#f4f7f5"
+PANEL = "#f0f3f1"
+TINT = "#dfe9e5"
+HOVER = "#e7ece9"
+DONE = "#e1ece4"
+DONE_INK = "#2f5d43"
+DANGER = "#a3554a"
 
 
 def ui_font(size: int = 13, weight: str = "normal") -> tuple:
-    family = "Segoe UI" if sys.platform == "win32" else "Helvetica Neue"
+    family = "Segoe UI" if sys.platform == "win32" else "PT Sans"
     if weight == "bold":
         return (family, size, "bold")
     return (family, size)
 
 
+def display_font(size: int) -> tuple:
+    """Page titles: a book face, since the app is for saving stories."""
+    family = "Georgia" if sys.platform == "win32" else "PT Serif"
+    return (family, size, "bold")
+
+
 class SoftButton(tk.Canvas):
-    """A rounded button. primary is filled; secondary and chips are outlined."""
+    """A flat button. primary is filled, secondary and chips are outlined, ghost is text only."""
 
     def __init__(
         self,
@@ -36,6 +49,7 @@ class SoftButton(tk.Canvas):
         height: int = 34,
         canvas_bg: str = CARD,
         selected: bool = False,
+        check: bool = False,
     ) -> None:
         super().__init__(
             parent,
@@ -50,6 +64,7 @@ class SoftButton(tk.Canvas):
         self.command = command
         self.enabled = True
         self.selected = selected
+        self.check = check
         self.label = text
         self._hover = False
         self.bind("<Button-1>", self._click)
@@ -63,7 +78,6 @@ class SoftButton(tk.Canvas):
 
     def set_enabled(self, enabled: bool) -> None:
         self.enabled = enabled
-        self.configure(cursor="hand2" if enabled else "arrow")
         self._draw()
 
     def set_selected(self, selected: bool) -> None:
@@ -91,6 +105,7 @@ class SoftButton(tk.Canvas):
 
     def _draw(self) -> None:
         self.delete("all")
+        self.configure(cursor="hand2" if self.enabled and self.kind != "done" else "arrow")
         width = int(self.cget("width"))
         height = int(self.cget("height"))
         fill, ink, outline = self._palette()
@@ -98,23 +113,55 @@ class SoftButton(tk.Canvas):
             self.create_rectangle(1, 1, width - 1, height - 1, fill=fill, outline=outline, width=1)
         else:
             self.create_rectangle(0, 0, width, height, fill=fill, outline=fill)
+        text = self.label
+        if self.kind == "done" or (self.check and self.kind == "chip" and self.selected):
+            text = f"✓ {text}"
         if self.kind == "nav":
-            self.create_text(16, height / 2, text=self.label, fill=ink, font=ui_font(14, "bold"), anchor="w")
+            if self.selected:
+                self.create_rectangle(0, 0, 3, height, fill=ACCENT, outline=ACCENT)
+            self.create_text(16, height / 2, text=text, fill=ink, font=ui_font(14, "bold"), anchor="w")
         else:
-            self.create_text(width / 2, height / 2, text=self.label, fill=ink, font=ui_font(13, "bold"))
+            self.create_text(width / 2, height / 2, text=text, fill=ink, font=ui_font(13, "bold"))
 
     def _palette(self) -> tuple[str, str, str]:
         if not self.enabled:
-            return "#e5e5ea", "#8e8e93", ""
+            return "#e6eae8", "#8a948f", ""
         if self.kind == "done":
-            return "#248a3d", "#ffffff", ""
-        if self.kind == "primary" or (self.kind == "chip" and self.selected):
+            return DONE, DONE_INK, ""
+        if self.kind == "primary":
             return (ACCENT_DARK if self._hover else ACCENT), "#ffffff", ""
+        if self.kind == "danger":
+            return ("#f6ebe9" if self._hover else CARD), DANGER, "#dcb6b0"
+        if self.kind == "ghost":
+            return (HOVER if self._hover else self.cget("bg")), ACCENT, ""
+        if self.kind == "chip" and self.selected:
+            return TINT, ACCENT_DARK, "#b9cec7"
         if self.kind == "nav":
             if self.selected:
-                return "#ffffff", ACCENT, ""
-            return ("#e4e4e8" if self._hover else SIDEBAR), INK, ""
-        return ("#f5f5f7" if self._hover else "#ffffff"), INK, LINE
+                return CARD, INK, ""
+            return ("#dae1dd" if self._hover else SIDEBAR), MUTED, ""
+        return (HOVER if self._hover else CARD), INK, LINE
+
+
+class ProgressLine(tk.Canvas):
+    """A thin bar that fills as stories finish; blank while idle."""
+
+    def __init__(self, parent, bg: str = CARD) -> None:
+        super().__init__(parent, height=4, highlightthickness=0, bd=0, bg=bg)
+        self.fraction: float | None = None
+        self.bind("<Configure>", lambda _event: self._draw())
+
+    def set(self, fraction: float | None) -> None:
+        self.fraction = fraction
+        self._draw()
+
+    def _draw(self) -> None:
+        self.delete("all")
+        if self.fraction is None:
+            return
+        width = self.winfo_width()
+        self.create_rectangle(0, 0, width, 4, fill=LINE, outline="")
+        self.create_rectangle(0, 0, int(width * self.fraction), 4, fill=ACCENT, outline="")
 
 
 class ScrolledBody(tk.Frame):
