@@ -174,6 +174,23 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([work.title for work in works], ["First book", "Second book"])
         self.assertEqual(nxt, "https://ficbook.net/authors/4/profile/works?p=2")
 
+    def test_author_works_covers_and_avatar(self):
+        from ficbook_dl.parse import parse_author_avatar, parse_author_works
+
+        html = """
+        <html><head><title>Ada – profile</title></head><body>
+        <a href="/authors/99"><img src="https://assets.teinon.net/avatars/other.png"></a>
+        <a href="/authors/4"><img alt="Ada" src="https://assets.teinon.net/avatars/ada.webp"></a>
+        <article class="fanfic-inline"><a class="visit-link" href="/readfic/10">One</a>
+          <img src="https://assets.teinon.net/fanfic-covers/m_one.jpg"></article>
+        <article class="fanfic-inline"><a class="visit-link" href="/readfic/11">Two</a></article>
+        </body></html>
+        """
+        url = "https://ficbook.net/authors/4/profile/works"
+        _, works, _ = parse_author_works(html, url)
+        self.assertEqual([work.cover_url for work in works], ["https://assets.teinon.net/fanfic-covers/m_one.jpg", ""])
+        self.assertEqual(parse_author_avatar(html, url), "https://assets.teinon.net/avatars/ada.webp")
+
     def test_promo_inside_chapter_text_is_skipped(self):
         body = parse_chapter(
             '<div id="content">Before<div class="fanfic-text-promo js-text-insert">'

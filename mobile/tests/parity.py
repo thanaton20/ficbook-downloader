@@ -31,6 +31,7 @@ from ficbook_dl.parse import (  # noqa: E402
     canonical_author_works_url,
     canonical_story_url,
     file_stem,
+    parse_author_avatar,
     parse_author_works,
     parse_chapter_content,
     parse_story,
@@ -83,10 +84,15 @@ RICH_CHAPTER = """
 
 WORKS = """
 <html><head><title>Ada – profile</title></head><body>
-<a class="visit-link" href="/readfic/10">First book</a>
+<header><a href="/authors/99"><img alt="Visitor" src="https://assets.teinon.net/avatars/other.png"></a></header>
+<div class="profile"><a href="/authors/4"><img alt="Ada" src="https://assets.teinon.net/avatars/ada.webp"></a></div>
+<article class=" fanfic-inline "><h3><a class="visit-link" href="/readfic/10">First book</a></h3>
+  <img src="https://assets.teinon.net/fanfic-covers/m_one.jpg"></article>
 <a class="visit-link js-promo-fanfic" href="/readfic/99">Ad</a>
 <a class="visit-link" href="/readfic/10/">First book</a>
-<a class="visit-link" href="https://ficbook.net/readfic/11">Second <b>book</b></a>
+<article class="fanfic-inline"><h3><a class="visit-link" href="https://ficbook.net/readfic/11">Second <b>book</b></a></h3>
+  <img data-src="/fanfic-covers/m_two.webp"><img src="/assets/icons/x.svg"></article>
+<article class="fanfic-inline"><a class="visit-link" href="/readfic/12">Third</a><img src="/assets/x.png"></article>
 <a href="/authors/4/profile/works?p=2">2</a><a href="/authors/4/profile/works?p=3">3</a>
 </body></html>
 """
@@ -157,6 +163,8 @@ class ParityTests(unittest.TestCase):
              lambda: parse_chapter_content("<html><body>empty</body></html>", "https://ficbook.net/readfic/7/10")),
             ("works", WORKS, "https://ficbook.net/authors/4/profile/works", lambda: works_dict(WORKS, "https://ficbook.net/authors/4/profile/works")),
             ("works", WORKS, "https://ficbook.net/authors/4/profile/works?p=2#top", lambda: works_dict(WORKS, "https://ficbook.net/authors/4/profile/works?p=2#top")),
+            ("works", "<html><body><a href='/authors/7'><img src='/avatars/a.png'></a></body></html>", "https://ficbook.net/authors/4/profile/works",
+             lambda: works_dict("<html><body><a href='/authors/7'><img src='/avatars/a.png'></a></body></html>", "https://ficbook.net/authors/4/profile/works")),
             ("series", SERIES, "https://ficbook.net/series/1", lambda: series_index(SERIES, "9")),
         ]
         js = run_js([
@@ -198,7 +206,7 @@ class ParityTests(unittest.TestCase):
 
 def works_dict(html: str, url: str) -> dict:
     name, works, nxt = parse_author_works(html, url)
-    return {"name": name, "works": [asdict(work) for work in works], "next": nxt}
+    return {"name": name, "works": [asdict(work) for work in works], "next": nxt, "avatar": parse_author_avatar(html, url)}
 
 
 if __name__ == "__main__":

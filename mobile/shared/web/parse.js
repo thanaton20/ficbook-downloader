@@ -155,9 +155,42 @@
       const storyId = readficId(anchor);
       if (!storyId || seen.has(storyId)) continue;
       seen.add(storyId);
-      works.push({ story_id: storyId, title: text(anchor) || storyId, url: `${BASE}/readfic/${storyId}` });
+      works.push({ story_id: storyId, title: text(anchor) || storyId, url: `${BASE}/readfic/${storyId}`, cover_url: workCover(anchor) });
     }
-    return { name, works, next: nextWorksPage(doc, pageUrl) };
+    return { name, works, next: nextWorksPage(doc, pageUrl), avatar: authorAvatar(doc, pageUrl) };
+  }
+
+  /** The author's profile picture on their works page, or "". */
+  function authorAvatar(doc, pageUrl) {
+    const page = parseUrl(pageUrl);
+    const parts = page ? page.pathname.split("/").filter(Boolean) : [];
+    const own = parts.length > 1 && parts[0] === "authors" ? `/authors/${parts[1]}` : "";
+    const images = Array.from(doc.querySelectorAll("img")).filter((image) => imageSrc(image).includes("/avatars/"));
+    for (const image of images) {
+      const link = image.parentElement && image.parentElement.closest("a[href]");
+      const target = link && parseUrl(link.getAttribute("href"), BASE);
+      if (own && target && target.pathname.replace(/\/+$/, "") === own) return absolute(imageSrc(image));
+    }
+    return images.length ? absolute(imageSrc(images[0])) : "";
+  }
+
+  function workCover(anchor) {
+    const card = anchor.parentElement && anchor.parentElement.closest("article");
+    if (!card) return "";
+    for (const image of card.querySelectorAll("img")) {
+      const src = imageSrc(image);
+      if (src.includes("/fanfic-covers/")) return absolute(src);
+    }
+    return "";
+  }
+
+  function imageSrc(image) {
+    return (image.getAttribute("src") || image.getAttribute("data-src") || "").trim();
+  }
+
+  function absolute(src) {
+    const parsed = parseUrl(src, BASE);
+    return parsed ? parsed.href : "";
   }
 
   function fileStem(story) {
