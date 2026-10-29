@@ -16,6 +16,8 @@ _STORY_PATH = re.compile(r"^/readfic/([^/]+)")
 _AUTHOR_PATH = re.compile(r"^/authors/[^/]+/?$")
 _SECURITY_TITLE = "<title>Проверка безопасности"
 _UI_LINES = {"Спойлеры", "Показать", "Скрыть", "Спойлер"}
+# Promos for other stories that ficbook inserts into the chapter text.
+_INSERTED = {"fanfic-text-promo", "js-text-insert", "js-promo-fanfic", "fanfic-promo-item"}
 
 
 @dataclass
@@ -318,7 +320,11 @@ def _inline_markup(node) -> str:
                 chunks.append(escape(str(child)).replace("\r\n", "\n").replace("\r", "\n"))
                 continue
             name = child.name
-            if name in ("script", "style"):
+            if name in ("script", "style", "template", "noscript"):
+                continue
+            if _INSERTED & set(child.get("class") or []):
+                if chunks and not chunks[-1].endswith("\n"):
+                    chunks.append("\n")
                 continue
             if name == "br":
                 chunks.append("\n")
@@ -396,6 +402,7 @@ class AuthorWork:
     story_id: str
     title: str
     url: str
+    cover_url: str = ""
 
 
 def canonical_author_works_url(value: str) -> str:
@@ -438,9 +445,38 @@ def parse_author_works(html: str, page_url: str) -> tuple[str, list[AuthorWork],
                 story_id=match.group(1),
                 title=title,
                 url=f"https://ficbook.net/readfic/{match.group(1)}",
+                cover_url=_work_cover(anchor),
             )
         )
     return name, works, _next_works_page(soup, page_url)
+
+
+def parse_author_avatar(html: str, page_url: str) -> str:
+    """Return the author's profile picture URL from their works page, or ""."""
+    soup = BeautifulSoup(html, "html.parser")
+    parts = [part for part in urlparse(page_url).path.split("/") if part]
+    own = f"/authors/{parts[1]}" if len(parts) > 1 and parts[0] == "authors" else ""
+    images = [image for image in soup.find_all("img") if "/avatars/" in _image_src(image)]
+    for image in images:
+        link = image.find_parent("a", href=True)
+        if own and link is not None and urlparse(urljoin("https://ficbook.net", link["href"])).path.rstrip("/") == own:
+            return urljoin("https://ficbook.net", _image_src(image))
+    return urljoin("https://ficbook.net", _image_src(images[0])) if images else ""
+
+
+def _work_cover(anchor) -> str:
+    card = anchor.find_parent("article")
+    if card is None:
+        return ""
+    for image in card.find_all("img"):
+        src = _image_src(image)
+        if "/fanfic-covers/" in src:
+            return urljoin("https://ficbook.net", src)
+    return ""
+
+
+def _image_src(image) -> str:
+    return (image.get("src") or image.get("data-src") or "").strip()
 
 
 def _author_name_from_title(soup: BeautifulSoup) -> str:

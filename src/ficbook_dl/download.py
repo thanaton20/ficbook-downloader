@@ -20,11 +20,20 @@ from ficbook_dl.parse import (
 FORMATS = ("txt", "epub", "fb2")
 
 
-def download_story(client: Client, link: str, on_chapter=None, stop=None, language: str = "en") -> Story:
+def download_story(
+    client: Client,
+    link: str,
+    on_chapter=None,
+    stop=None,
+    language: str = "en",
+    story: Story | None = None,
+) -> Story:
+    """Fetch every chapter. Pass `story` to reuse a story page that was already read."""
     if stop and stop():
         raise described(Cancelled, "stopped")
     story_url = canonical_story_url(link)
-    story = parse_story(client.get(story_url), story_url, language)
+    if story is None:
+        story = parse_story(client.get(story_url), story_url, language)
     if story.series_url and story.series_index is None:
         try:
             story.series_index = series_index(client.get(story.series_url), story.story_id)

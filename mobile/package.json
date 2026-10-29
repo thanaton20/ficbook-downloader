@@ -1,0 +1,11 @@
+{
+  "name": "ficbook-downloader-mobile",
+  "private": true,
+  "description": "Shared web core for the iOS and Android apps. Only used for tests.",
+  "scripts": {
+    "test": "python3 tests/parity.py"
+  },
+  "devDependencies": {
+    "jsdom": "25.0.1"
+  }
+}

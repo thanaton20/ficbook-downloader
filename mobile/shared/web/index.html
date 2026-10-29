@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>Ficbook Downloader</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main>
+    <section class="page" id="page-download" data-page="download">
+      <h1 data-t="nav_download"></h1>
+      <div class="card">
+        <div class="row head">
+          <label class="label" for="links" data-t="story_links"></label>
+          <span class="spacer"></span>
+          <button class="button secondary small" id="paste" type="button" data-t="paste"></button>
+          <button class="button ghost small" id="clear" type="button" data-t="clear"></button>
+        </div>
+        <div class="numbered">
+          <div class="gutter" id="gutter" aria-hidden="true"></div>
+          <textarea id="links" rows="6" wrap="off" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" data-t-placeholder="hint"></textarea>
+        </div>
+        <p class="muted small" id="link-count" aria-live="polite"></p>
+        <ol class="covers" id="previews"></ol>
+        <hr>
+        <div class="row wrap">
+          <span class="label" data-t="formats"></span>
+          <div class="chips" id="formats"></div>
+        </div>
+        <hr>
+        <button class="button primary wide" id="download" type="button" data-t="download"></button>
+        <p class="muted status" id="status" aria-live="polite"></p>
+        <div class="progress" id="progress" hidden><span></span></div>
+        <details id="details" hidden>
+          <summary data-t="details_log"></summary>
+          <pre id="log"></pre>
+        </details>
+      </div>
+      <div class="card" id="saved-card" hidden>
+        <div class="row head">
+          <span class="label" data-t="saved_files"></span>
+          <span class="spacer"></span>
+          <button class="button ghost small" id="open-files" type="button" data-t="open_files"></button>
+        </div>
+        <ul class="files" id="saved"></ul>
+      </div>
+    </section>
+
+    <section class="page" id="page-library" data-page="library" hidden>
+      <h1 data-t="nav_library"></h1>
+      <div class="card">
+        <form class="row" id="author-form">
+          <input id="author" type="url" inputmode="url" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" data-t-placeholder="library_hint">
+          <button class="button primary" id="show-books" type="submit" data-t="show_books"></button>
+        </form>
+        <div class="row wrap">
+          <span class="label" data-t="formats"></span>
+          <div class="chips" id="library-formats"></div>
+        </div>
+      </div>
+      <p class="muted status" id="library-status" aria-live="polite"></p>
+      <div class="author-head" id="author-head" hidden>
+        <div class="avatar" id="avatar" aria-hidden="true"></div>
+        <div>
+          <p class="author-name" id="author-name"></p>
+          <p class="muted" id="author-count"></p>
+        </div>
+      </div>
+      <ul class="covers" id="books"></ul>
+    </section>
+
+    <section class="page" id="page-settings" data-page="settings" hidden>
+      <h1 data-t="nav_settings"></h1>
+      <div class="card">
+        <span class="label" data-t="language"></span>
+        <div class="segmented" id="languages" role="radiogroup"></div>
+        <hr>
+        <label class="label" for="pause" data-t="pause"></label>
+        <div class="stepper">
+          <button class="button secondary" type="button" id="pause-down" aria-label="−">−</button>
+          <input id="pause" type="number" inputmode="decimal" min="0" max="30" step="0.5">
+          <button class="button secondary" type="button" id="pause-up" aria-label="+">+</button>
+        </div>
+        <hr>
+        <p class="muted" id="files-location"></p>
+        <button class="button secondary" id="open-files-2" type="button" data-t="open_files"></button>
+      </div>
+      <h2 data-t="nav_about"></h2>
+      <div class="card about">
+        <div class="mark" aria-hidden="true">YH</div>
+        <p class="name" data-t="creator_name"></p>
+        <p class="muted" data-t="about_role"></p>
+        <p data-t="about_body_phone"></p>
+        <button class="button primary" id="github" type="button" data-t="open_github"></button>
+        <p class="muted small" id="version"></p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" id="tabs">
+    <button type="button" data-tab="download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg><span data-t="nav_download"></span></button>
+    <button type="button" data-tab="library"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.6-.9 3 15.5-3.6.9z"/></svg><span data-t="nav_library"></span></button>
+    <button type="button" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span data-t="nav_settings"></span></button>
+  </nav>
+
+  <dialog id="preview">
+    <div class="sheet">
+      <div class="cover" id="preview-cover"></div>
+      <h2 id="preview-title"></h2>
+      <p id="preview-author"></p>
+      <p class="muted" id="preview-series"></p>
+      <button class="button secondary wide" id="preview-close" type="button" data-t="close"></button>
+    </div>
+  </dialog>
+
+  <script src="strings.js"></script>
+  <script src="parse.js"></script>
+  <script src="books.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
