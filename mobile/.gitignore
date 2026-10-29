@@ -1,0 +1,10 @@
+node_modules/
+ios/Ficbook.xcodeproj/
+ios/build/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+*.jks
+*.keystore
+dist/

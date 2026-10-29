@@ -30,6 +30,16 @@ Download [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-download
 
 Windows may show a SmartScreen warning because the file is not signed. Choose **More info**, then **Run anyway**.
 
+## Download for iPhone
+
+Download [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) and install it with [Sideloadly](https://sideloadly.io) or AltStore using your Apple ID. It needs iOS 16.4 or later. With a free Apple ID, reinstall it every 7 days. Saved books are in **Files › On My iPhone › Ficbook**.
+
+## Download for Android
+
+On the phone, download [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) and open it. Allow installing from your browser when Android asks. It needs Android 10 or later. Saved books are in **Downloads › Ficbook**.
+
+The phone apps open ficbook pages in the phone's own browser view. If ficbook shows a security check or an age confirmation, the app shows that page so you can answer it. See [mobile/README.md](mobile/README.md) for how they are built.
+
 ## Install from source
 
 ```bash

@@ -1,0 +1,50 @@
+# Generate Ficbook.xcodeproj with:  xcodegen generate   (run in mobile/ios)
+name: Ficbook
+options:
+  bundleIdPrefix: io.github.thanaton20
+  deploymentTarget:
+    iOS: "16.4"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.4.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  Ficbook:
+    type: application
+    platform: iOS
+    sources:
+      - path: Ficbook
+      - path: ../shared/web
+        type: folder
+        buildPhase: resources
+    info:
+      path: Ficbook/Info.plist
+      properties:
+        CFBundleDisplayName: Ficbook
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.thanaton20.ficbook
+        PRODUCT_NAME: Ficbook
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic

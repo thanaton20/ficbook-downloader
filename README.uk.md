@@ -30,6 +30,16 @@ xattr -dr com.apple.quarantine "/Applications/Ficbook Downloader.app"
 
 Windows може показати попередження SmartScreen, бо файл не підписаний. Натисніть **Докладніше**, потім **Виконати попри це**.
 
+## Завантажити для iPhone
+
+Завантажте [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) і встановіть через [Sideloadly](https://sideloadly.io) або AltStore зі своїм Apple ID. Потрібна iOS 16.4 або новіша. З безкоштовним Apple ID застосунок треба перевстановлювати раз на 7 днів. Збережені книги лежать у **Файли › На iPhone › Ficbook**.
+
+## Завантажити для Android
+
+Завантажте на телефоні [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) і відкрийте його. Коли Android запитає, дозвольте встановлення з браузера. Потрібен Android 10 або новіший. Збережені книги лежать у **Завантаження › Ficbook**.
+
+Застосунки для телефона відкривають сторінки ficbook у вбудованому браузері телефона. Якщо ficbook покаже перевірку безпеки або підтвердження віку, застосунок покаже цю сторінку, щоб ви її пройшли. Як вони влаштовані — у [mobile/README.md](mobile/README.md).
+
 ## Встановлення з джерельного коду
 
 ```bash
