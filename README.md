@@ -14,8 +14,8 @@ Ficbook answers ordinary HTTP libraries with a security check. The desktop app a
 | --- | --- | --- |
 | Mac | [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg) | A Mac with Apple silicon (M1 or newer) |
 | Windows | [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) | Windows |
-| iPhone, iPad | [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) | iOS 16.4 or later, and a Mac or PC with Sideloadly |
-| Android | [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) | Android 10 or later |
+| iPhone, iPad | [Ficbook-Downloader.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.ipa) | iOS 16.4 or later, and a Mac or PC with Sideloadly |
+| Android | [Ficbook-Downloader.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.apk) | Android 10 or later |
 | Linux, Intel Mac | [Install from source](#install-from-source) | Python 3.11 or later |
 
 All versions are on the [Releases page](https://github.com/thanaton20/ficbook-downloader/releases).
@@ -51,21 +51,21 @@ The Windows file is still version 0.3.0. It does not have the newer look, link n
 The iPhone app is not in the App Store. You install it from a computer with [Sideloadly](https://sideloadly.io), using your own Apple ID.
 
 1. On a Mac or Windows PC, install [Sideloadly](https://sideloadly.io).
-2. Download [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) to that computer.
-3. Connect the iPhone with a cable. Drag **Ficbook.ipa** into Sideloadly, enter your Apple ID, and click **Start**.
+2. Download [Ficbook-Downloader.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.ipa) to that computer.
+3. Connect the iPhone with a cable. Drag **Ficbook-Downloader.ipa** into Sideloadly, enter your Apple ID, and click **Start**.
 4. On the iPhone, open **Settings › Privacy & Security › Developer Mode**, turn it on, and restart when asked.
 5. Open **Settings › General › VPN & Device Management**, tap your Apple ID, and tap **Trust**.
-6. Open **Ficbook** from the home screen.
+6. Open **Ficbook Downloader** from the home screen.
 
-It needs iOS 16.4 or later. With a free Apple ID the app stops opening after 7 days; install it again with Sideloadly to renew it. AltStore works too. Saved books are in **Files › On My iPhone › Ficbook**.
+It needs iOS 16.4 or later. With a free Apple ID the app stops opening after 7 days; install it again with Sideloadly to renew it. AltStore works too. Saved books are in **Files › On My iPhone › Ficbook Downloader**.
 
 ## Download for Android
 
-1. On the phone, download [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk).
+1. On the phone, download [Ficbook-Downloader.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.apk).
 2. Open the downloaded file. If Android asks, allow your browser or Files app to install unknown apps, then go back and tap **Install**.
 3. If Google Play Protect warns that the app is unknown, tap **More details**, then **Install anyway**.
 
-It needs Android 10 or later. Saved books are in **Downloads › Ficbook**. A newer `Ficbook.apk` installs over the old one.
+It needs Android 10 or later. Saved books are in **Downloads › Ficbook**. A newer `Ficbook-Downloader.apk` installs over the old one.
 
 The phone apps open ficbook pages in the phone's own browser view. If ficbook shows a security check or an age confirmation, the app shows that page so you can answer it. See [mobile/README.md](mobile/README.md) for how they are built.
 

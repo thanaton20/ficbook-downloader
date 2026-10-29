@@ -14,8 +14,8 @@
 | --- | --- | --- |
 | Mac | [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg) | Mac на Apple silicon (M1 или новее) |
 | Windows | [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) | Windows |
-| iPhone, iPad | [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) | iOS 16.4 или новее и Mac или ПК с Sideloadly |
-| Android | [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) | Android 10 или новее |
+| iPhone, iPad | [Ficbook-Downloader.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.ipa) | iOS 16.4 или новее и Mac или ПК с Sideloadly |
+| Android | [Ficbook-Downloader.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.apk) | Android 10 или новее |
 | Linux, Mac на Intel | [Установка из исходников](#установка-из-исходников) | Python 3.11 или новее |
 
 Все версии — на [странице релизов](https://github.com/thanaton20/ficbook-downloader/releases).
@@ -51,21 +51,21 @@ Windows может показать предупреждение SmartScreen, п
 Приложения для iPhone нет в App Store. Его устанавливают с компьютера через [Sideloadly](https://sideloadly.io) со своим Apple ID.
 
 1. Установите [Sideloadly](https://sideloadly.io) на Mac или ПК с Windows.
-2. Скачайте на этот компьютер [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa).
-3. Подключите iPhone кабелем. Перетащите **Ficbook.ipa** в Sideloadly, введите свой Apple ID и нажмите **Start**.
+2. Скачайте на этот компьютер [Ficbook-Downloader.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.ipa).
+3. Подключите iPhone кабелем. Перетащите **Ficbook-Downloader.ipa** в Sideloadly, введите свой Apple ID и нажмите **Start**.
 4. На iPhone откройте **Настройки › Конфиденциальность и безопасность › Режим разработчика**, включите его и перезагрузите телефон, когда он попросит.
 5. Откройте **Настройки › Основные › VPN и управление устройством**, нажмите на свой Apple ID и нажмите **Доверять**.
-6. Откройте **Ficbook** на главном экране.
+6. Откройте **Ficbook Downloader** на главном экране.
 
-Нужна iOS 16.4 или новее. С бесплатным Apple ID приложение перестаёт открываться через 7 дней — установите его через Sideloadly ещё раз, чтобы продлить. Подойдёт и AltStore. Сохранённые книги лежат в **Файлы › На iPhone › Ficbook**.
+Нужна iOS 16.4 или новее. С бесплатным Apple ID приложение перестаёт открываться через 7 дней — установите его через Sideloadly ещё раз, чтобы продлить. Подойдёт и AltStore. Сохранённые книги лежат в **Файлы › На iPhone › Ficbook Downloader**.
 
 ## Скачать для Android
 
-1. Скачайте на телефоне [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk).
+1. Скачайте на телефоне [Ficbook-Downloader.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.apk).
 2. Откройте скачанный файл. Если Android спросит, разрешите браузеру или приложению «Файлы» устанавливать неизвестные приложения, затем вернитесь и нажмите **Установить**.
 3. Если Google Play Защита предупредит, что приложение неизвестное, нажмите **Подробнее**, затем **Всё равно установить**.
 
-Нужен Android 10 или новее. Сохранённые книги лежат в **Загрузки › Ficbook**. Новый `Ficbook.apk` устанавливается поверх старого.
+Нужен Android 10 или новее. Сохранённые книги лежат в **Загрузки › Ficbook**. Новый `Ficbook-Downloader.apk` устанавливается поверх старого.
 
 Приложения для телефона открывают страницы ficbook во встроенном браузере телефона. Если ficbook покажет проверку безопасности или подтверждение возраста, приложение покажет эту страницу, чтобы вы её прошли. Как они устроены — в [mobile/README.md](mobile/README.md).
 

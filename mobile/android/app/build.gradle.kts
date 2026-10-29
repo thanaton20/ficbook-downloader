@@ -22,8 +22,8 @@ android {
         applicationId = "io.github.thanaton20.ficbook"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.5.0"
+        versionCode = 3
+        versionName = "0.5.1"
     }
 
     signingConfigs {

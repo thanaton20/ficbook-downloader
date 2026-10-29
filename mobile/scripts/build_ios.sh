@@ -18,6 +18,6 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/Payload" dist
 cp -R "$BUILD/Build/Products/Release-iphoneos/Ficbook.app" "$STAGE/Payload/"
-(cd "$STAGE" && zip -qry "Ficbook.ipa" Payload)
-mv "$STAGE/Ficbook.ipa" "dist/Ficbook.ipa"
-echo "Built mobile/dist/Ficbook.ipa ($VERSION)"
+(cd "$STAGE" && zip -qry "Ficbook-Downloader.ipa" Payload)
+mv "$STAGE/Ficbook-Downloader.ipa" "dist/Ficbook-Downloader.ipa"
+echo "Built mobile/dist/Ficbook-Downloader.ipa ($VERSION)"

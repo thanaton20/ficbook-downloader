@@ -14,8 +14,8 @@
 | --- | --- | --- |
 | Mac | [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg) | Mac на Apple silicon (M1 або новіший) |
 | Windows | [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) | Windows |
-| iPhone, iPad | [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) | iOS 16.4 або новіша і Mac або ПК із Sideloadly |
-| Android | [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) | Android 10 або новіший |
+| iPhone, iPad | [Ficbook-Downloader.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.ipa) | iOS 16.4 або новіша і Mac або ПК із Sideloadly |
+| Android | [Ficbook-Downloader.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.apk) | Android 10 або новіший |
 | Linux, Mac на Intel | [Встановлення з джерельного коду](#встановлення-з-джерельного-коду) | Python 3.11 або новіший |
 
 Усі версії — на [сторінці релізів](https://github.com/thanaton20/ficbook-downloader/releases).
@@ -51,21 +51,21 @@ Windows може показати попередження SmartScreen, бо ф�
 Застосунку для iPhone немає в App Store. Його встановлюють з комп'ютера через [Sideloadly](https://sideloadly.io) зі своїм Apple ID.
 
 1. Встановіть [Sideloadly](https://sideloadly.io) на Mac або ПК з Windows.
-2. Завантажте на цей комп'ютер [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa).
-3. Під'єднайте iPhone кабелем. Перетягніть **Ficbook.ipa** у Sideloadly, введіть свій Apple ID і натисніть **Start**.
+2. Завантажте на цей комп'ютер [Ficbook-Downloader.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.ipa).
+3. Під'єднайте iPhone кабелем. Перетягніть **Ficbook-Downloader.ipa** у Sideloadly, введіть свій Apple ID і натисніть **Start**.
 4. На iPhone відкрийте **Параметри › Приватність і безпека › Режим розробника**, увімкніть його й перезавантажте телефон, коли він попросить.
 5. Відкрийте **Параметри › Загальні › VPN і керування пристроєм**, торкніться свого Apple ID і натисніть **Довіряти**.
-6. Відкрийте **Ficbook** на головному екрані.
+6. Відкрийте **Ficbook Downloader** на головному екрані.
 
-Потрібна iOS 16.4 або новіша. З безкоштовним Apple ID застосунок перестає відкриватися через 7 днів — встановіть його через Sideloadly ще раз, щоб продовжити. Підійде і AltStore. Збережені книжки лежать у **Файли › На iPhone › Ficbook**.
+Потрібна iOS 16.4 або новіша. З безкоштовним Apple ID застосунок перестає відкриватися через 7 днів — встановіть його через Sideloadly ще раз, щоб продовжити. Підійде і AltStore. Збережені книжки лежать у **Файли › На iPhone › Ficbook Downloader**.
 
 ## Завантажити для Android
 
-1. Завантажте на телефоні [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk).
+1. Завантажте на телефоні [Ficbook-Downloader.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.apk).
 2. Відкрийте завантажений файл. Якщо Android запитає, дозвольте браузеру або застосунку «Файли» встановлювати невідомі застосунки, потім поверніться й натисніть **Встановити**.
 3. Якщо Google Play Захист попередить, що застосунок невідомий, натисніть **Докладніше**, потім **Усе одно встановити**.
 
-Потрібен Android 10 або новіший. Збережені книжки лежать у **Завантаження › Ficbook**. Новий `Ficbook.apk` встановлюється поверх старого.
+Потрібен Android 10 або новіший. Збережені книжки лежать у **Завантаження › Ficbook**. Новий `Ficbook-Downloader.apk` встановлюється поверх старого.
 
 Застосунки для телефона відкривають сторінки ficbook у вбудованому браузері телефона. Якщо ficbook покаже перевірку безпеки або підтвердження віку, застосунок покаже цю сторінку, щоб ви її пройшли. Як вони влаштовані — у [mobile/README.md](mobile/README.md).
 
