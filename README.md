@@ -2,15 +2,27 @@
 
 English | [Русский](README.ru.md) | [Українська](README.uk.md)
 
-A command-line and desktop app that saves [ficbook.net](https://ficbook.net/) stories as UTF-8 text, EPUB, and FB2. The window runs on macOS and Windows.
+A desktop, phone, and command-line app that saves [ficbook.net](https://ficbook.net/) stories as UTF-8 text, EPUB, and FB2. It runs on macOS, Windows, iPhone, and Android, and from source on Linux.
 
 You give it story links. It reads each public story page, follows the chapter list, and writes one file per format. Each chapter is its own section. Author, translator, series name and number, fandom, tags, and description are stored in the file. A cover is included when the story has one. It waits between requests. It does not open a browser.
 
-Ficbook answers ordinary HTTP libraries with a security check. This app uses [curl_cffi](https://github.com/lexiforest/curl_cffi) so those requests look like a normal browser connection and the public story HTML comes back.
+Ficbook answers ordinary HTTP libraries with a security check. The desktop app and the command line use [curl_cffi](https://github.com/lexiforest/curl_cffi) so those requests look like a normal browser connection and the public story HTML comes back. The phone apps open each page in the phone's own browser view instead.
+
+## Which file do I need?
+
+| Device | Download | Needs |
+| --- | --- | --- |
+| Mac | [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg) | A Mac with Apple silicon (M1 or newer) |
+| Windows | [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) | Windows |
+| iPhone, iPad | [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) | iOS 16.4 or later, and a Mac or PC with Sideloadly |
+| Android | [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) | Android 10 or later |
+| Linux, Intel Mac | [Install from source](#install-from-source) | Python 3.11 or later |
+
+All versions are on the [Releases page](https://github.com/thanaton20/ficbook-downloader/releases).
 
 ## Download for Mac
 
-Download [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg). This build is for Apple silicon Macs.
+Download [Ficbook-Downloader.dmg](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.dmg). This build is for Apple silicon Macs. On an Intel Mac, [install from source](#install-from-source).
 
 1. Open the disk image.
 2. Drag **Ficbook Downloader** onto the Applications folder.
@@ -24,31 +36,66 @@ xattr -dr com.apple.quarantine "/Applications/Ficbook Downloader.app"
 
 Open the app from Applications again. The warning is gone.
 
+To update, download the new disk image and drag the app onto Applications again, replacing the old one.
+
 ## Download for Windows
 
 Download [Ficbook-Downloader.exe](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook-Downloader.exe) and double-click it.
 
 Windows may show a SmartScreen warning because the file is not signed. Choose **More info**, then **Run anyway**.
 
+The Windows file is still version 0.3.0. It does not have the newer look, link numbers, or book previews yet. To get them now, [install from source](#install-from-source).
+
 ## Download for iPhone
 
-Download [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) and install it with [Sideloadly](https://sideloadly.io) or AltStore using your Apple ID. It needs iOS 16.4 or later. With a free Apple ID, reinstall it every 7 days. Saved books are in **Files › On My iPhone › Ficbook**.
+The iPhone app is not in the App Store. You install it from a computer with [Sideloadly](https://sideloadly.io), using your own Apple ID.
+
+1. On a Mac or Windows PC, install [Sideloadly](https://sideloadly.io).
+2. Download [Ficbook.ipa](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.ipa) to that computer.
+3. Connect the iPhone with a cable. Drag **Ficbook.ipa** into Sideloadly, enter your Apple ID, and click **Start**.
+4. On the iPhone, open **Settings › Privacy & Security › Developer Mode**, turn it on, and restart when asked.
+5. Open **Settings › General › VPN & Device Management**, tap your Apple ID, and tap **Trust**.
+6. Open **Ficbook** from the home screen.
+
+It needs iOS 16.4 or later. With a free Apple ID the app stops opening after 7 days; install it again with Sideloadly to renew it. AltStore works too. Saved books are in **Files › On My iPhone › Ficbook**.
 
 ## Download for Android
 
-On the phone, download [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk) and open it. Allow installing from your browser when Android asks. It needs Android 10 or later. Saved books are in **Downloads › Ficbook**.
+1. On the phone, download [Ficbook.apk](https://github.com/thanaton20/ficbook-downloader/releases/latest/download/Ficbook.apk).
+2. Open the downloaded file. If Android asks, allow your browser or Files app to install unknown apps, then go back and tap **Install**.
+3. If Google Play Protect warns that the app is unknown, tap **More details**, then **Install anyway**.
+
+It needs Android 10 or later. Saved books are in **Downloads › Ficbook**. A newer `Ficbook.apk` installs over the old one.
 
 The phone apps open ficbook pages in the phone's own browser view. If ficbook shows a security check or an age confirmation, the app shows that page so you can answer it. See [mobile/README.md](mobile/README.md) for how they are built.
 
 ## Install from source
 
+This works on macOS (Intel or Apple silicon), Windows, and Linux. It needs Python 3.11 or later and Git.
+
+On macOS or Linux:
+
 ```bash
+git clone https://github.com/thanaton20/ficbook-downloader.git
+cd ficbook-downloader
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
 
-From the GitHub repository:
+On Windows:
+
+```bat
+git clone https://github.com/thanaton20/ficbook-downloader.git
+cd ficbook-downloader
+py -m venv .venv
+.venv\Scripts\activate
+pip install -e .
+```
+
+On Linux the window needs Tk. On Debian or Ubuntu run `sudo apt install python3-tk`; on Fedora run `sudo dnf install python3-tkinter`.
+
+Then `ficbook-gui` opens the window and `ficbook-dl` runs the command line. To install without cloning:
 
 ```bash
 pip install git+https://github.com/thanaton20/ficbook-downloader.git
@@ -73,7 +120,7 @@ ficbook-gui
 
 ### Download
 
-1. In **Story links**, paste one link per line. A story id works too, and a link to a single chapter still saves the whole story.
+1. In **Story links**, paste one link per line. A story id works too, and a link to a single chapter still saves the whole story. Each link gets a number for its place in the download order, and a preview with the cover, title, and author appears under the box. Stories without a cover show their title on a coloured block.
 2. **Save to** starts as your `Stories` folder. **Browse** picks another folder, and that choice is kept the next time you open the app.
 3. **TXT**, **EPUB**, and **FB2** start selected. Click a format to turn it off.
 4. **Pause (seconds)** is the wait between requests. It starts at `1.5`.
@@ -83,7 +130,7 @@ ficbook-gui
 
 ### Library
 
-Paste an author link, such as `https://ficbook.net/authors/2`, and click **Show books**. The page lists that author's books. **TXT**, **EPUB**, and **FB2** on this page choose the file type. **Download** on a row saves that book in the selected types, into the folder chosen on the Download page. **Preview** opens the book title, the author's name, the series name, and the cover.
+Paste an author link, such as `https://ficbook.net/authors/2`, and click **Show books**. The page lists that author's books. **TXT**, **EPUB**, and **FB2** on this page choose the file type. The author's picture and name sit above a grid of book covers. **Download** under a book saves it in the selected types, into the folder chosen on the Download page. Click a cover to see the book title, the author's name, the series name, and a larger cover.
 
 ### About
 
@@ -118,4 +165,4 @@ Chapter text
 
 ## Limits
 
-The story has to be readable on the public page. An age check or a chapter without text stops that story and the app continues with the next link. Keep the copies for your own reading, and leave a pause between requests so the site is not hammered. The default pause is 1.5 seconds.
+The story has to be readable on the public page. On a computer, an age check or a chapter without text stops that story and the app continues with the next link. On a phone, the app shows the age check so you can confirm it. Keep the copies for your own reading, and leave a pause between requests so the site is not hammered. The default pause is 1.5 seconds.
