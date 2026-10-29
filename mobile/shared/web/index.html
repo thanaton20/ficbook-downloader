@@ -18,8 +18,12 @@
           <button class="button secondary small" id="paste" type="button" data-t="paste"></button>
           <button class="button ghost small" id="clear" type="button" data-t="clear"></button>
         </div>
-        <textarea id="links" rows="6" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" data-t-placeholder="hint"></textarea>
+        <div class="numbered">
+          <div class="gutter" id="gutter" aria-hidden="true"></div>
+          <textarea id="links" rows="6" wrap="off" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" data-t-placeholder="hint"></textarea>
+        </div>
         <p class="muted small" id="link-count" aria-live="polite"></p>
+        <ol class="covers" id="previews"></ol>
         <hr>
         <div class="row wrap">
           <span class="label" data-t="formats"></span>
@@ -57,7 +61,14 @@
         </div>
       </div>
       <p class="muted status" id="library-status" aria-live="polite"></p>
-      <ul class="books" id="books"></ul>
+      <div class="author-head" id="author-head" hidden>
+        <div class="avatar" id="avatar" aria-hidden="true"></div>
+        <div>
+          <p class="author-name" id="author-name"></p>
+          <p class="muted" id="author-count"></p>
+        </div>
+      </div>
+      <ul class="covers" id="books"></ul>
     </section>
 
     <section class="page" id="page-settings" data-page="settings" hidden>

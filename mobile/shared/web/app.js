@@ -126,8 +126,10 @@
     if (!busy) $("status").textContent = t("status_idle");
     if (libraryIdle) $("library-status").textContent = t("library_empty");
     updateLinkCount();
+    renderPreviews();
     renderSaved();
     renderBooks();
+    if (authorCount !== null) $("author-count").textContent = t("books_count", { n: authorCount });
   }
 
   function showPage(name) {
@@ -166,6 +168,151 @@
   function updateLinkCount() {
     const count = linkLines().length;
     $("link-count").textContent = count ? tn("links_count", count) : "";
+    renderGutter();
+  }
+
+  /* Number each link line with its place in the download order. */
+  function renderGutter() {
+    const gutter = $("gutter");
+    let number = 0;
+    gutter.textContent = "";
+    for (const line of $("links").value.split("\n")) {
+      const row = document.createElement("div");
+      if (line.trim()) row.textContent = String(++number);
+      gutter.appendChild(row);
+    }
+    gutter.scrollTop = $("links").scrollTop;
+  }
+
+  function onLinksChanged() {
+    updateLinkCount();
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+      renderPreviews();
+      pumpPreviews();
+    }, 600);
+  }
+
+  // ---- Book previews ------------------------------------------------------
+
+  const TONES = ["#3f6b60", "#4a6378", "#7d6250", "#6b5870", "#5d6e4c", "#4f6d6d"];
+  const previews = new Map(); // story URL -> { status, story, image, error, saved }
+  let previewTimer = 0;
+  let pumping = false;
+
+  function linkEntries() {
+    return linkLines().map((line, index) => {
+      try {
+        const url = FicbookParse.canonicalStoryUrl(line);
+        if (!previews.has(url)) previews.set(url, { status: "waiting" });
+        return { number: index + 1, line, url, entry: previews.get(url) };
+      } catch (error) {
+        return { number: index + 1, line, url: "", entry: { status: "failed", error } };
+      }
+    });
+  }
+
+  function renderPreviews() {
+    const list = $("previews");
+    list.textContent = "";
+    for (const { number, line, url, entry } of linkEntries()) {
+      const story = entry.story;
+      let author = t("loading");
+      if (story) author = story.author;
+      else if (entry.status === "failed") author = messageFor(entry.error);
+      list.appendChild(bookCard({
+        number,
+        saved: entry.saved,
+        seed: url || line,
+        title: story ? story.title : line,
+        author,
+        image: entry.image,
+        state: entry.status,
+      }));
+    }
+  }
+
+  /* Load previews one story at a time, and step aside while a download runs. */
+  async function pumpPreviews() {
+    if (pumping) return;
+    pumping = true;
+    try {
+      while (!busy) {
+        const next = linkEntries().find((item) => item.entry.status === "waiting");
+        if (!next) break;
+        const entry = next.entry;
+        entry.status = "loading";
+        try {
+          entry.story = await read(next.url, "story");
+          entry.status = "done";
+          renderPreviews();
+          if (entry.story.cover_url) {
+            const result = await callNative("image", { url: entry.story.cover_url });
+            if (result.ok) entry.image = result.data;
+          }
+        } catch (error) {
+          entry.status = "failed";
+          entry.error = error;
+        }
+        renderPreviews();
+      }
+    } finally {
+      pumping = false;
+    }
+  }
+
+  /* A cover with the title and author under it. Without a cover image, the title is set on a coloured block. */
+  function bookCard({ number, saved, seed, title, author, image, state, onOpen, action }) {
+    const item = document.createElement("li");
+    const waiting = state === "waiting" || state === "loading";
+    item.className = `book${state === "failed" ? " failed" : waiting ? " waiting" : ""}`;
+    const cover = document.createElement(onOpen ? "button" : "div");
+    cover.className = "cover";
+    if (onOpen) {
+      cover.type = "button";
+      cover.setAttribute("aria-label", title);
+      cover.addEventListener("click", onOpen);
+    }
+    if (!waiting && state !== "failed") cover.style.setProperty("--tone", tone(seed));
+    if (image) {
+      cover.appendChild(coverImage(image));
+    } else {
+      const label = document.createElement("span");
+      label.className = "cover-title";
+      label.textContent = state === "failed" ? "!" : waiting ? "…" : title;
+      cover.appendChild(label);
+    }
+    if (number) {
+      const badge = document.createElement("span");
+      badge.className = `badge${saved ? " done" : ""}`;
+      badge.textContent = saved ? `✓ ${number}` : String(number);
+      cover.appendChild(badge);
+    }
+    const name = document.createElement("p");
+    name.className = "book-title";
+    name.textContent = title;
+    item.append(cover, name);
+    if (author) {
+      const by = document.createElement("p");
+      by.className = "book-author";
+      by.textContent = author;
+      item.appendChild(by);
+    }
+    if (action) item.appendChild(action);
+    return item;
+  }
+
+  function coverImage(src) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.src = src;
+    return img;
+  }
+
+  function tone(seed) {
+    let hash = 0;
+    for (const char of String(seed)) hash = (hash * 31 + char.codePointAt(0)) >>> 0;
+    return TONES[hash % TONES.length];
   }
 
   async function pasteLinks() {
@@ -175,7 +322,7 @@
     const box = $("links");
     const current = box.value.replace(/\s+$/, "");
     box.value = current ? `${current}\n${text}\n` : `${text}\n`;
-    updateLinkCount();
+    onLinksChanged();
   }
 
   function log(line) {
@@ -239,6 +386,11 @@
         names.forEach((name) => log(t("saved_path", { path: name })));
         saved++;
         onState(url, "downloaded");
+        const entry = previews.get(story.url);
+        if (entry) {
+          entry.saved = true;
+          renderPreviews();
+        }
       } catch (error) {
         onState(url, "download");
         if (error.code === "stopped" || error.code === "cancelled") {
@@ -251,7 +403,9 @@
     }
     setProgress(null);
     setBusy(false);
+    stopRequested = false;
     $("status").textContent = savedStatus(saved, failed);
+    pumpPreviews();
   }
 
   function savedStatus(saved, failed) {
@@ -261,8 +415,16 @@
   }
 
   let lastRead = 0;
+  let readQueue = Promise.resolve();
 
-  async function read(url, kind, extra = {}) {
+  /* The native reader opens one page at a time, so reads take turns. */
+  function read(url, kind, extra = {}) {
+    const run = readQueue.then(() => readNow(url, kind, extra));
+    readQueue = run.catch(() => {});
+    return run;
+  }
+
+  async function readNow(url, kind, extra) {
     const wait = settings.pause * 1000 - (Date.now() - lastRead);
     if (lastRead && wait > 0) await sleep(wait);
     if (stopRequested) throw new AppError("stopped");
@@ -292,7 +454,10 @@
     } catch (error) {
       throw new AppError(error.code, error.params);
     }
-    const story = await read(storyUrl, "story");
+    // Reuse the page already read for the preview.
+    const cached = previews.get(storyUrl);
+    const story = cached && cached.story ? copy(cached.story) : await read(storyUrl, "story");
+    if (!cached || !cached.story) previews.set(storyUrl, { status: "done", story: copy(story) });
     if (story.series_url && story.series_index == null) {
       try {
         story.series_index = await read(story.series_url, "series", { storyId: story.story_id });
@@ -337,6 +502,10 @@
     return names;
   }
 
+  function copy(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
   function utf8Base64(text) {
     return FicbookBooks.toBase64(new TextEncoder().encode(text));
   }
@@ -378,7 +547,12 @@
   let libraryIdle = true;
   let works = [];
   let libraryAuthor = "";
+  let authorCount = null;
   const bookStates = new Map();
+  const coverRequests = new Map(); // image URL -> Promise of a data URL
+  const coverObserver = "IntersectionObserver" in window
+    ? new IntersectionObserver(onCoverVisible, { rootMargin: "600px 0px" })
+    : null;
 
   async function loadAuthor(event) {
     event.preventDefault();
@@ -394,14 +568,20 @@
     $("author").blur();
     $("show-books").disabled = true;
     $("library-status").textContent = t("loading");
+    $("author-head").hidden = true;
+    authorCount = null;
+    works = [];
+    renderBooks();
     try {
       let name = "";
+      let avatar = "";
       const found = [];
       const seen = new Set();
       let page = url;
       for (let i = 0; i < 40 && page; i++) {
         const result = await read(page, "works");
         name = name || result.name;
+        avatar = avatar || result.avatar;
         for (const work of result.works) {
           if (!seen.has(work.story_id)) {
             seen.add(work.story_id);
@@ -415,8 +595,8 @@
         libraryAuthor = url;
       }
       works = found;
-      const count = t("books_count", { n: found.length });
-      $("library-status").textContent = name ? `${name} · ${count}` : count;
+      $("library-status").textContent = "";
+      showAuthor(name, avatar, found.length);
       renderBooks();
     } catch (error) {
       $("library-status").textContent = messageFor(error);
@@ -425,21 +605,25 @@
     }
   }
 
+  function showAuthor(name, avatar, count) {
+    authorCount = count;
+    $("author-head").hidden = false;
+    $("author-name").textContent = name;
+    $("author-count").textContent = t("books_count", { n: count });
+    const box = $("avatar");
+    box.textContent = (name || "?").trim().charAt(0).toUpperCase();
+    if (!avatar) return;
+    callNative("image", { url: avatar }).then((result) => {
+      if (!result.ok) return;
+      box.textContent = "";
+      box.appendChild(coverImage(result.data));
+    });
+  }
+
   function renderBooks() {
     const list = $("books");
     list.textContent = "";
     for (const work of works) {
-      const item = document.createElement("li");
-      const title = document.createElement("p");
-      title.className = "title";
-      title.textContent = work.title;
-      const actions = document.createElement("div");
-      actions.className = "actions";
-      const preview = document.createElement("button");
-      preview.type = "button";
-      preview.className = "button secondary";
-      preview.textContent = t("preview");
-      preview.addEventListener("click", () => openPreview(work));
       const download = document.createElement("button");
       download.type = "button";
       paintBookButton(download, bookStates.get(work.url) || "download");
@@ -451,10 +635,38 @@
           paintBookButton(download, next);
         });
       });
-      actions.append(preview, download);
-      item.append(title, actions);
+      const item = bookCard({ seed: work.url, title: work.title, onOpen: () => openPreview(work), action: download });
+      if (work.cover_url) {
+        item.dataset.cover = work.cover_url;
+        if (coverObserver) coverObserver.observe(item);
+        else showCover(item);
+      }
       list.appendChild(item);
     }
+  }
+
+  /* Covers load as their rows come near the screen. */
+  function onCoverVisible(entries) {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      coverObserver.unobserve(entry.target);
+      showCover(entry.target);
+    }
+  }
+
+  async function showCover(item) {
+    const data = await loadImage(item.dataset.cover);
+    if (!data || !item.isConnected) return;
+    const box = item.querySelector(".cover");
+    box.querySelector(".cover-title")?.remove();
+    box.prepend(coverImage(data));
+  }
+
+  function loadImage(url) {
+    if (!coverRequests.has(url)) {
+      coverRequests.set(url, callNative("image", { url }).then((result) => (result.ok ? result.data : "")));
+    }
+    return coverRequests.get(url);
   }
 
   function paintBookButton(button, state) {
@@ -470,15 +682,11 @@
       $("library-status").textContent = "";
       const cover = $("preview-cover");
       cover.textContent = t("no_cover");
-      if (story.cover_url) {
-        const result = await callNative("cover", { url: story.cover_url });
-        if (result.ok && result.data) {
-          const img = document.createElement("img");
-          img.alt = story.title;
-          img.src = `data:image/jpeg;base64,${result.data}`;
-          cover.textContent = "";
-          cover.appendChild(img);
-        }
+      const image = story.cover_url || work.cover_url;
+      const data = image ? await loadImage(image) : "";
+      if (data) {
+        cover.textContent = "";
+        cover.appendChild(coverImage(data));
       }
       $("preview-title").textContent = story.title;
       $("preview-author").textContent = `${t("author")}: ${story.author}`;
@@ -532,11 +740,14 @@
     $("pause").addEventListener("change", (event) => setPause(event.target.value));
     $("pause-down").addEventListener("click", () => setPause(settings.pause - 0.5));
     $("pause-up").addEventListener("click", () => setPause(settings.pause + 0.5));
-    $("links").addEventListener("input", updateLinkCount);
+    $("links").addEventListener("input", onLinksChanged);
+    $("links").addEventListener("scroll", () => {
+      $("gutter").scrollTop = $("links").scrollTop;
+    });
     $("paste").addEventListener("click", pasteLinks);
     $("clear").addEventListener("click", () => {
       $("links").value = "";
-      updateLinkCount();
+      onLinksChanged();
     });
     $("download").addEventListener("click", onDownloadPressed);
     $("author-form").addEventListener("submit", loadAuthor);

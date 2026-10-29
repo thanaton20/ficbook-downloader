@@ -78,6 +78,7 @@ final class WebAppController: UIViewController, WKScriptMessageHandler, WKNaviga
         switch method {
         case "read": read(id, args)
         case "cover": cover(id, args)
+        case "image": image(id, args)
         case "save": save(id, args)
         case "share": share(id, args)
         case "openFiles": openFiles(id)
@@ -113,6 +114,24 @@ final class WebAppController: UIViewController, WKScriptMessageHandler, WKNaviga
             DispatchQueue.main.async {
                 if let jpeg {
                     self?.reply(id, ["ok": true, "data": jpeg.base64EncodedString()])
+                } else {
+                    self?.reply(id, ["ok": false])
+                }
+            }
+        }.resume()
+    }
+
+    /// A picture for display, as the server sent it (covers, avatars).
+    private func image(_ id: Int, _ args: [String: Any]) {
+        guard let url = URL(string: args["url"] as? String ?? "") else {
+            reply(id, ["ok": false])
+            return
+        }
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, _ in
+            let mime = response?.mimeType ?? "image/jpeg"
+            DispatchQueue.main.async {
+                if let data, !data.isEmpty, mime.hasPrefix("image/") {
+                    self?.reply(id, ["ok": true, "data": "data:\(mime);base64,\(data.base64EncodedString())"])
                 } else {
                     self?.reply(id, ["ok": false])
                 }

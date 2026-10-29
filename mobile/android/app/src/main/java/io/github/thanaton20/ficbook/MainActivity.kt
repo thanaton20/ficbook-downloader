@@ -120,6 +120,7 @@ class MainActivity : Activity() {
                 ) { json -> replyRaw(id, json) }
             }
             "cover" -> cover(id, args.optString("url"))
+            "image" -> image(id, args.optString("url"))
             "save" -> save(id, args)
             "share" -> share(id, args.optString("name"))
             "openFiles" -> {
@@ -156,6 +157,26 @@ class MainActivity : Activity() {
             }
             runOnUiThread {
                 if (jpeg != null) reply(id, JSONObject().put("ok", true).put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP)))
+                else reply(id, JSONObject().put("ok", false))
+            }
+        }
+    }
+
+    /** A picture for display, as the server sent it (covers, avatars). */
+    private fun image(id: Int, address: String) {
+        thread {
+            val result = try {
+                val connection = URL(address).openConnection() as HttpURLConnection
+                connection.connectTimeout = 20_000
+                connection.readTimeout = 20_000
+                val mime = connection.contentType?.substringBefore(';')?.trim() ?: "image/jpeg"
+                val bytes = connection.inputStream.use { it.readBytes() }
+                if (bytes.isNotEmpty() && mime.startsWith("image/")) "data:$mime;base64,${Base64.encodeToString(bytes, Base64.NO_WRAP)}" else null
+            } catch (_: Exception) {
+                null
+            }
+            runOnUiThread {
+                if (result != null) reply(id, JSONObject().put("ok", true).put("data", result))
                 else reply(id, JSONObject().put("ok", false))
             }
         }

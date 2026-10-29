@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 import io
 import os
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 import webbrowser
 from pathlib import Path
@@ -20,7 +22,13 @@ from ficbook_dl.errors import Cancelled, FicbookError, message
 from ficbook_dl.formats.cover import to_jpeg
 from ficbook_dl.i18n import preferred_language, save_language, saved_status, t, tn
 from ficbook_dl.mac_window import blend_title_bar
-from ficbook_dl.parse import canonical_author_works_url, canonical_story_url, parse_author_works, parse_story
+from ficbook_dl.parse import (
+    canonical_author_works_url,
+    canonical_story_url,
+    parse_author_avatar,
+    parse_author_works,
+    parse_story,
+)
 from ficbook_dl.ui_widgets import (
     ACCENT,
     BG,
@@ -31,9 +39,12 @@ from ficbook_dl.ui_widgets import (
     PANEL,
     SIDEBAR,
     SOFT,
+    BookCard,
     ProgressLine,
     ScrolledBody,
+    Shelf,
     SoftButton,
+    circle_photo,
     display_font,
     ui_font,
 )
@@ -77,6 +88,17 @@ class App:
         self.labels: list[tuple[tk.Label, str, int, str, bool]] = []
         self.library_idle = True
         self.buttons: list[tuple[SoftButton, str]] = []
+        # Story previews on the Download page, keyed by story URL. The worker thread
+        # fills them in; the lock guards the dicts and the order list.
+        self.previews: dict[str, dict] = {}
+        self.preview_order: list[str] = []
+        self.preview_lock = threading.Lock()
+        self.preview_running = False
+        self.preview_timer = None
+        self.author_count: int | None = None
+        self.library_cards: list[BookCard] = []
+        self.library_columns = 0
+        self.library_generation = 0
         self._build()
         self.apply_language()
         self.show_page("download")
@@ -209,11 +231,15 @@ class App:
         self.buttons.append((button, key))
         return button
 
-    def _rule(self, parent) -> None:
-        tk.Frame(parent, bg=LINE, height=1).pack(fill="x", padx=22, pady=(4, 14))
+    def _rule(self, parent) -> tk.Frame:
+        rule = tk.Frame(parent, bg=LINE, height=1)
+        rule.pack(fill="x", padx=22, pady=(4, 14))
+        return rule
 
     def _build_download(self, parent) -> tk.Frame:
-        page = tk.Frame(parent, bg=BG)
+        # The page scrolls, so the previews never push Download and the log off the window.
+        self.download_scroll = ScrolledBody(parent, BG, fill=True)
+        page = self.download_scroll.inner
         self.download_title = self._label(page, "nav_download", 26, bg=BG, serif=True)
         self.download_title.pack(anchor="w", padx=28, pady=(26, 14))
         card = self._card(page)
@@ -226,9 +252,14 @@ class App:
         self._button(head, "clear", self._clear_links, "ghost", 100, height=30).pack(side="right")
         self._button(head, "paste", self._paste_button, "secondary", 112, height=30).pack(side="right", padx=(0, 6))
 
+        # The links box: a gutter numbers each link with its place in the download order.
+        self.links_box = tk.Frame(card, bg=SOFT, highlightthickness=2, highlightbackground=LINE)
+        self.links_box.pack(fill="both", expand=True, padx=22, pady=(0, 6))
+        self.gutter = tk.Canvas(self.links_box, width=36, bg=SOFT, highlightthickness=0, bd=0)
+        self.gutter.pack(side="left", fill="y")
         self.links = tk.Text(
-            card,
-            height=8,
+            self.links_box,
+            height=5,
             wrap="word",
             undo=True,
             font=ui_font(15),
@@ -236,25 +267,29 @@ class App:
             fg=INK,
             insertbackground=INK,
             relief="flat",
-            highlightthickness=2,
-            highlightbackground=LINE,
-            highlightcolor=ACCENT,
-            padx=12,
+            highlightthickness=0,
+            padx=10,
             pady=10,
             bd=0,
             spacing1=2,
             spacing3=2,
+            yscrollcommand=lambda *_args: self.root.after_idle(self._draw_gutter),
         )
         self.links.hint_on = False
-        self.links.pack(fill="both", expand=True, padx=22, pady=(0, 6))
-        self.links.bind("<FocusIn>", lambda _event: self._clear_hint())
-        self.links.bind("<FocusOut>", lambda _event: self.root.after(50, self._show_hint))
+        self.links.pack(side="left", fill="both", expand=True)
+        self.links.bind("<Configure>", lambda _event: self.root.after_idle(self._draw_gutter))
+        self.links.bind("<FocusIn>", lambda _event: (self.links_box.configure(highlightbackground=ACCENT), self._clear_hint()))
+        self.links.bind(
+            "<FocusOut>",
+            lambda _event: (self.links_box.configure(highlightbackground=LINE), self.root.after(50, self._show_hint)),
+        )
         self.links.bind("<<Paste>>", self._paste_links)
         self.links.bind("<<Modified>>", self._links_changed)
         self.links.bind(START_KEYS, self._start_shortcut)
         self.link_count = tk.Label(card, bg=CARD, fg=MUTED, font=ui_font(12), anchor="w")
         self.link_count.pack(fill="x", padx=22, pady=(0, 10))
-        self._rule(card)
+        self.preview_shelf = Shelf(card, CARD, height=262)
+        self.links_rule = self._rule(card)
 
         folder = tk.Frame(card, bg=CARD)
         folder.pack(fill="x", padx=22, pady=(0, 12))
@@ -339,7 +374,8 @@ class App:
             bd=0,
         )
         self.log.pack(fill="x", padx=22, pady=(0, 18))
-        return page
+        self.download_scroll.sync()
+        return self.download_scroll
 
     def _build_library(self, parent) -> tk.Frame:
         page = tk.Frame(parent, bg=BG)
@@ -376,8 +412,18 @@ class App:
 
         self.library_status = tk.Label(page, bg=BG, fg=MUTED, font=ui_font(13), anchor="w")
         self.library_status.pack(anchor="w", padx=28, pady=(10, 6))
+        self.author_head = tk.Frame(page, bg=BG)
+        self.avatar = tk.Canvas(self.author_head, width=64, height=64, bg=BG, highlightthickness=0, bd=0)
+        self.avatar.pack(side="left")
+        names = tk.Frame(self.author_head, bg=BG)
+        names.pack(side="left", padx=(14, 0))
+        self.author_name = tk.Label(names, bg=BG, fg=INK, font=display_font(22), anchor="w")
+        self.author_name.pack(anchor="w")
+        self.author_books = tk.Label(names, bg=BG, fg=MUTED, font=ui_font(13), anchor="w")
+        self.author_books.pack(anchor="w")
         self.library_scroll = ScrolledBody(page, BG)
         self.library_scroll.pack(fill="both", expand=True, padx=28, pady=(0, 24))
+        self.library_scroll.canvas.bind("<Configure>", lambda _event: self._layout_library(), add="+")
         return page
 
     def _build_about(self, parent) -> tk.Frame:
@@ -451,6 +497,9 @@ class App:
             self.links.hint_on = False
         self._show_hint()
         self._update_link_count()
+        self._render_previews()
+        if self.author_count is not None:
+            self.author_books.configure(text=t(self.language, "books_count", n=self.author_count))
         if not self.author_entry.get().strip():
             self.author_entry.delete(0, "end")
         self.author_entry.configure(bg=SOFT)
@@ -506,6 +555,131 @@ class App:
     def _links_changed(self, _event=None) -> None:
         self.links.edit_modified(False)
         self._update_link_count()
+        self._draw_gutter()
+        if self.preview_timer:
+            self.root.after_cancel(self.preview_timer)
+        self.preview_timer = self.root.after(700, self._refresh_previews)
+
+    def _draw_gutter(self) -> None:
+        self.gutter.delete("all")
+        height = self.gutter.winfo_height()
+        self.gutter.create_line(35, 0, 35, height, fill=LINE)
+        if self.links.hint_on:
+            return
+        number = 0
+        last = int(self.links.index("end-1c").split(".")[0])
+        for line in range(1, last + 1):
+            if not self.links.get(f"{line}.0", f"{line}.end").strip():
+                continue
+            number += 1
+            info = self.links.dlineinfo(f"{line}.0")
+            if info is None:
+                continue
+            _x, y, _width, line_height, _baseline = info
+            self.gutter.create_text(28, y + line_height / 2, text=str(number), anchor="e", fill=MUTED, font=ui_font(12, "bold"))
+
+    # ---- Previews of the pasted stories --------------------------------------
+
+    def _link_entries(self) -> list[tuple[int, str, str, dict]]:
+        entries = []
+        for number, line in enumerate(self._link_lines(), 1):
+            try:
+                url = canonical_story_url(line)
+            except FicbookError as exc:
+                entries.append((number, line, "", {"status": "failed", "error": message(exc, self.language)}))
+                continue
+            with self.preview_lock:
+                entry = self.previews.setdefault(url, {"status": "waiting"})
+            entries.append((number, line, url, entry))
+        return entries
+
+    def _refresh_previews(self) -> None:
+        self.preview_timer = None
+        self._render_previews()
+        self._start_preview_worker()
+
+    def _render_previews(self) -> None:
+        entries = self._link_entries()
+        with self.preview_lock:
+            self.preview_order = [url for _, _, url, _ in entries if url]
+        for child in self.preview_shelf.inner.winfo_children():
+            child.destroy()
+        if not entries:
+            self.preview_shelf.pack_forget()
+            self.download_scroll.sync()
+            return
+        self.preview_shelf.pack(fill="x", padx=22, pady=(0, 6), before=self.links_rule)
+        for number, line, url, entry in entries:
+            story = entry.get("story")
+            if story:
+                author = story.author
+            elif entry["status"] == "failed":
+                author = entry.get("error", "")
+            else:
+                author = t(self.language, "loading")
+            card = BookCard(self.preview_shelf.inner, width=120)
+            card.show(
+                title=story.title if story else line,
+                author=author,
+                seed=url or line,
+                image=entry.get("image"),
+                state=entry["status"],
+                number=number,
+                saved=entry.get("saved", False),
+            )
+            card.pack(side="left", anchor="n", padx=(0, 16))
+        self.preview_shelf.sync()
+        self.download_scroll.sync()
+
+    def _start_preview_worker(self) -> None:
+        try:
+            pause = max(0.0, self._pause())
+        except ValueError:
+            pause = 1.5
+        with self.preview_lock:
+            if self.preview_running:
+                return
+            self.preview_running = True
+        threading.Thread(target=self._preview_worker, args=(pause, self.language), daemon=True).start()
+
+    def _preview_worker(self, pause: float, language: str) -> None:
+        # One story page at a time, and none while a download is running.
+        client = Client(delay=pause)
+        while True:
+            if self.busy:
+                time.sleep(0.5)
+                continue
+            with self.preview_lock:
+                url = next((item for item in self.preview_order if self.previews[item]["status"] == "waiting"), None)
+                if url is None:
+                    self.preview_running = False
+                    return
+                entry = self.previews[url]
+                entry["status"] = "loading"
+            try:
+                story = parse_story(client.get(url), url, language)
+                image = None
+                if story.cover_url:
+                    try:
+                        story.cover_jpeg = to_jpeg(client.get_bytes(story.cover_url))
+                        image = Image.open(io.BytesIO(story.cover_jpeg)) if story.cover_jpeg else None
+                    except Exception:
+                        story.cover_jpeg = None
+                with self.preview_lock:
+                    entry.update(status="done", story=story, image=image)
+            except Exception as exc:
+                text = message(exc, language) if isinstance(exc, FicbookError) else str(exc)
+                with self.preview_lock:
+                    entry.update(status="failed", error=text)
+            self.root.after(0, self._render_previews)
+
+    def _mark_preview_saved(self, url: str) -> None:
+        with self.preview_lock:
+            entry = self.previews.get(url)
+            if entry is None:
+                return
+            entry["saved"] = True
+        self._render_previews()
 
     def _update_link_count(self) -> None:
         count = len(self._link_lines())
@@ -601,6 +775,8 @@ class App:
                 continue
             self.root.after(0, lambda current=story_url: self._set_book_state(current, "saving"))
             self.root.after(0, self._log, url)
+            with self.preview_lock:
+                cached = self.previews.get(story_url, {}).get("story")
             try:
                 story = download_story(
                     client,
@@ -610,6 +786,7 @@ class App:
                     ),
                     stop=self.stop_flag.is_set,
                     language=language,
+                    story=copy.deepcopy(cached) if cached else None,
                 )
                 paths = save_story(story, Path(self.output.get()), formats, language)
             except Cancelled:
@@ -628,6 +805,7 @@ class App:
                 continue
             saved += 1
             self.root.after(0, lambda current=story_url: self._remember_download(current))
+            self.root.after(0, lambda current=story_url: self._mark_preview_saved(current))
             for path in paths:
                 self.root.after(0, self._log, t(language, "saved_path", path=path))
         summary = saved_status(language, saved, failed)
@@ -666,6 +844,7 @@ class App:
             return
         self.library_idle = False
         self.library_status.configure(text=t(self.language, "loading"))
+        self.author_head.pack_forget()
         self.show_books_button.set_enabled(False)
         threading.Thread(target=self._author_worker, args=(url, pause, self.language), daemon=True).start()
 
@@ -673,12 +852,15 @@ class App:
         try:
             client = Client(delay=pause)
             name = ""
+            avatar_url = ""
             works = []
             seen: set[str] = set()
             page = url
             for _ in range(40):
-                author_name, found, nxt = parse_author_works(client.get(page), page)
+                html = client.get(page)
+                author_name, found, nxt = parse_author_works(html, page)
                 name = name or author_name
+                avatar_url = avatar_url or parse_author_avatar(html, page)
                 for work in found:
                     if work.story_id not in seen:
                         seen.add(work.story_id)
@@ -690,44 +872,95 @@ class App:
             text = message(exc, language) if isinstance(exc, FicbookError) else str(exc)
             self.root.after(0, lambda: self._author_failed(text))
             return
-        self.root.after(0, lambda: self._show_works(name, works, url))
+        avatar = None
+        if avatar_url:
+            try:
+                avatar = Image.open(io.BytesIO(client.get_bytes(avatar_url)))
+                avatar.load()
+            except Exception:
+                avatar = None
+        self.root.after(0, lambda: self._show_works(name, works, url, avatar))
 
     def _author_failed(self, text: str) -> None:
         self.show_books_button.set_enabled(True)
         self.library_status.configure(text=text)
 
-    def _show_works(self, name: str, works, author_url: str) -> None:
+    def _show_works(self, name: str, works, author_url: str, avatar=None) -> None:
         if author_url != self.library_author_url:
             self.downloaded_urls.clear()
             self.library_author_url = author_url
         self.show_books_button.set_enabled(True)
-        self.library_status.configure(text=f"{name} · {t(self.language, 'books_count', n=len(works))}" if name else t(self.language, "books_count", n=len(works)))
+        self.library_status.configure(text="")
+        self._show_author(name, avatar, len(works))
         self.row_buttons.clear()
         self.book_buttons.clear()
         for child in self.library_scroll.inner.winfo_children():
             child.destroy()
+        self.library_cards = []
         for work in works:
-            row = tk.Frame(self.library_scroll.inner, bg=CARD, highlightthickness=1, highlightbackground=LINE)
-            row.pack(fill="x", pady=6)
-            title = tk.Label(row, text=work.title, bg=CARD, fg=INK, font=ui_font(15, "bold"), anchor="w", wraplength=520, justify="left")
-            title.pack(side="left", fill="x", expand=True, padx=16, pady=14)
-            preview = SoftButton(row, t(self.language, "preview"), command=lambda item=work: self._preview(item), kind="secondary", width=150, height=34)
+            card = BookCard(self.library_scroll.inner, width=150, bg=BG, on_open=lambda item=work: self._preview(item), author_line=False)
+            card.show(title=work.title, seed=work.url)
             already = work.url in self.downloaded_urls
             download = SoftButton(
-                row,
+                card,
                 t(self.language, "downloaded" if already else "download"),
                 command=None if already else (lambda item=work: self._start_download([item.url], self._library_formats())),
                 kind="done" if already else "primary",
-                width=168,
+                width=150,
                 height=34,
+                canvas_bg=BG,
             )
             download.book_state = "downloaded" if already else "download"
-            download.pack(side="right", padx=(0, 14), pady=12)
-            preview.pack(side="right", padx=(0, 8), pady=12)
+            download.pack(anchor="w", pady=(8, 0))
             self.book_buttons[work.url] = download
-            self.row_buttons.append((preview, "preview"))
             self.row_buttons.append((download, "download"))
+            self.library_cards.append(card)
+        self.library_columns = 0
+        self._layout_library()
         self.library_scroll.sync()
+        self.library_generation += 1
+        covered = [(card, work.cover_url) for card, work in zip(self.library_cards, works) if work.cover_url]
+        if covered:
+            threading.Thread(target=self._cover_worker, args=(covered, self.library_generation), daemon=True).start()
+
+    def _show_author(self, name: str, avatar, count: int) -> None:
+        self.author_count = count
+        self.author_name.configure(text=name)
+        self.author_books.configure(text=t(self.language, "books_count", n=count))
+        self.avatar.delete("all")
+        if avatar is not None:
+            self.avatar.photo = circle_photo(avatar, 64)
+            self.avatar.create_image(0, 0, image=self.avatar.photo, anchor="nw")
+        else:
+            self.avatar.create_oval(0, 0, 63, 63, fill=ACCENT, outline=ACCENT)
+            self.avatar.create_text(32, 32, text=(name or "?")[:1].upper(), fill="#ffffff", font=display_font(24))
+        self.author_head.pack(anchor="w", padx=28, pady=(0, 14), before=self.library_scroll)
+
+    def _layout_library(self) -> None:
+        """Lay the book cards out in as many columns as fit the window."""
+        if not self.library_cards:
+            return
+        width = self.library_scroll.canvas.winfo_width()
+        card, gap = 150, 22
+        columns = max(1, (width + gap) // (card + gap))
+        if columns == self.library_columns:
+            return
+        self.library_columns = columns
+        for index, item in enumerate(self.library_cards):
+            item.grid(row=index // columns, column=index % columns, sticky="nw", padx=(0, gap), pady=(0, 22))
+        self.library_scroll.sync()
+
+    def _cover_worker(self, covered, generation: int) -> None:
+        client = Client(delay=0.1)
+        for card, url in covered:
+            if generation != self.library_generation:
+                return
+            try:
+                image = Image.open(io.BytesIO(client.get_bytes(url)))
+                image.load()
+            except Exception:
+                continue
+            self.root.after(0, lambda target=card, picture=image: target.set_image(picture) if target.winfo_exists() else None)
 
     def _set_book_state(self, url: str, state: str) -> None:
         button = self.book_buttons.get(url)

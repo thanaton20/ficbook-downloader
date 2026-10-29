@@ -104,6 +104,40 @@ textarea, input {
 
 textarea { resize: vertical; min-height: 150px; }
 textarea:focus, input:focus { border-color: var(--accent); }
+
+/* The links box: a gutter numbers each link in download order. */
+.numbered {
+  display: flex;
+  background: var(--soft);
+  border: 2px solid var(--line);
+}
+.numbered:focus-within { border-color: var(--accent); }
+.numbered textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px 10px 8px;
+  line-height: 24px;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.gutter {
+  flex: none;
+  width: 2.6em;
+  padding: 10px 0;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font: 600 13px/24px var(--sans);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.gutter div { height: 24px; padding-right: 8px; }
+.gutter div:empty::before { content: "\00a0"; }
 textarea::placeholder, input::placeholder { color: var(--muted); }
 #link-count { margin: 6px 0 0; min-height: 1.2em; }
 
@@ -170,7 +204,7 @@ pre {
   word-break: break-word;
 }
 
-.files, .books { list-style: none; margin: 0; padding: 0; }
+.files, .covers { list-style: none; margin: 0; padding: 0; }
 
 .files li {
   display: flex;
@@ -183,16 +217,85 @@ pre {
 .files li:first-child { border-top: 0; padding-top: 0; }
 .files .file-name { flex: 1; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
 
-.books li {
-  background: var(--card);
-  border: 1px solid var(--line);
-  padding: 14px 16px;
-  margin-bottom: 10px;
+/* Book previews: a cover, the title, and the author, as in a bookshop. */
+.covers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 18px 12px;
 }
+#previews:not(:empty) { margin-top: 14px; }
+.book { min-width: 0; display: flex; flex-direction: column; }
+.book .cover {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  background: var(--tone, var(--soft));
+  border: 1px solid rgba(38, 51, 47, .12);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+  text-align: center;
+}
+button.cover { width: 100%; font: inherit; color: inherit; cursor: pointer; border-radius: 0; }
+.book .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cover-title {
+  color: #fff;
+  font: 700 16px/1.25 var(--serif);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.book.waiting .cover-title, .book.failed .cover-title { color: var(--muted); font: 600 24px var(--sans); }
+.badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  background: var(--card);
+  color: var(--ink);
+  font: 700 13px/26px var(--sans);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(38, 51, 47, .15);
+}
+.badge.done { background: var(--done); color: var(--done-ink); }
+.book-title {
+  margin: 8px 0 2px;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.book-author { margin: 0; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.book.failed .book-author { white-space: normal; overflow-wrap: anywhere; color: var(--danger); font-size: 13px; }
+/* Buttons line up across a row even when titles wrap differently. */
+.book .button { width: 100%; margin-top: auto; min-height: 40px; }
+.book:has(.button) .book-title { margin-bottom: 10px; }
 
-.books .title { font-weight: 700; margin: 0 0 12px; overflow-wrap: anywhere; }
-.books .actions { display: flex; gap: 8px; }
-.books .actions .button { flex: 1; }
+.author-head { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; }
+.avatar {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--accent);
+  color: #fff;
+  font: 700 26px/64px var(--serif);
+  text-align: center;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--card); }
+.author-name { font: 700 24px/1.2 var(--serif); margin: 0 0 2px; overflow-wrap: anywhere; }
+.author-head .muted { margin: 0; }
 
 #author-form { margin-bottom: 14px; }
 #author-form input { flex: 1; min-width: 0; }
