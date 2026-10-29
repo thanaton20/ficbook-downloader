@@ -16,6 +16,8 @@ _STORY_PATH = re.compile(r"^/readfic/([^/]+)")
 _AUTHOR_PATH = re.compile(r"^/authors/[^/]+/?$")
 _SECURITY_TITLE = "<title>Проверка безопасности"
 _UI_LINES = {"Спойлеры", "Показать", "Скрыть", "Спойлер"}
+# Promos for other stories that ficbook inserts into the chapter text.
+_INSERTED = {"fanfic-text-promo", "js-text-insert", "js-promo-fanfic", "fanfic-promo-item"}
 
 
 @dataclass
@@ -318,7 +320,11 @@ def _inline_markup(node) -> str:
                 chunks.append(escape(str(child)).replace("\r\n", "\n").replace("\r", "\n"))
                 continue
             name = child.name
-            if name in ("script", "style"):
+            if name in ("script", "style", "template", "noscript"):
+                continue
+            if _INSERTED & set(child.get("class") or []):
+                if chunks and not chunks[-1].endswith("\n"):
+                    chunks.append("\n")
                 continue
             if name == "br":
                 chunks.append("\n")

@@ -174,6 +174,14 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([work.title for work in works], ["First book", "Second book"])
         self.assertEqual(nxt, "https://ficbook.net/authors/4/profile/works?p=2")
 
+    def test_promo_inside_chapter_text_is_skipped(self):
+        body = parse_chapter(
+            '<div id="content">Before<div class="fanfic-text-promo js-text-insert">'
+            '<a class="js-promo-fanfic" href="/readfic/1">ПРОМО Other</a></div>After</div>',
+            "https://ficbook.net/readfic/7/10",
+        )
+        self.assertEqual(body, "Before\n\nAfter")
+
     def test_missing_chapter_text(self):
         with self.assertRaises(MissingText):
             parse_chapter("<html><body>empty</body></html>", "https://ficbook.net/readfic/7/10")
