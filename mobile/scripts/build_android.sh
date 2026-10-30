@@ -16,5 +16,5 @@ python3 tools/export_strings.py
 VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' ../src/ficbook_dl/__init__.py)
 (cd android && ./gradlew --quiet assembleRelease)
 mkdir -p dist
-cp android/app/build/outputs/apk/release/app-release.apk "dist/Ficbook.apk"
-echo "Built mobile/dist/Ficbook.apk ($VERSION)"
+cp android/app/build/outputs/apk/release/app-release.apk "dist/Ficbook-Downloader.apk"
+echo "Built mobile/dist/Ficbook-Downloader.apk ($VERSION)"

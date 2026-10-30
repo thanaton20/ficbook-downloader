@@ -6,11 +6,11 @@ The phone apps save ficbook.net stories as txt, EPUB, and FB2, like the desktop 
 
 Download the files from the [Releases page](https://github.com/thanaton20/ficbook-downloader/releases).
 
-**iPhone / iPad** (iOS 16.4 or later): download `Ficbook.ipa` and install it with
+**iPhone / iPad** (iOS 16.4 or later): download `Ficbook-Downloader.ipa` and install it with
 [Sideloadly](https://sideloadly.io) or AltStore using your Apple ID. With a free Apple ID the app
-must be reinstalled every 7 days. Saved books appear in **Files › On My iPhone › Ficbook**.
+must be reinstalled every 7 days. Saved books appear in **Files › On My iPhone › Ficbook Downloader**.
 
-**Android** (10 or later): download `Ficbook.apk` on the phone, open it, and allow
+**Android** (10 or later): download `Ficbook-Downloader.apk` on the phone, open it, and allow
 installing from your browser when asked. Saved books appear in **Downloads › Ficbook**.
 
 ## How it works
